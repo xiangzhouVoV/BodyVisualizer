@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { calculateBMI, getBmiLabel } from "../lib/bodyMath";
+import { calculateBMI, getBmiLabel, getWeightMorphs } from "../lib/bodyMath";
 import { useBodyStore } from "../stores/bodyStore";
 import type { ModelType } from "../types/body";
 
@@ -45,6 +45,7 @@ export function BodyControls() {
   const {
     activeProfile, heightCm, measurements, modelType, targetHeightCm,
     targetMeasurements, targetWeightKg, weightKg,
+    showFatLayer,
   } = useBodyStore();
   const isCurrent = activeProfile === "current";
   const activeHeightCm = isCurrent ? heightCm : targetHeightCm;
@@ -57,7 +58,10 @@ export function BodyControls() {
   const setWeightKg = useBodyStore((state) => state.setWeightKg);
   const setMeasurements = useBodyStore((state) => state.setMeasurements);
   const copyCurrentToTarget = useBodyStore((state) => state.copyCurrentToTarget);
+  const setShowFatLayer = useBodyStore((state) => state.setShowFatLayer);
   const bmi = calculateBMI(activeHeightCm, activeWeightKg);
+  const fatIndex = getWeightMorphs(activeHeightCm, activeWeightKg).bodyFat;
+  const fatLabel = fatIndex < 0.33 ? "较低" : fatIndex < 0.66 ? "中等" : "较高";
 
   const selectModel = (next: ModelType) => {
     setModelType(next);
@@ -113,6 +117,15 @@ export function BodyControls() {
           <span className="bmi-note">仅供体型趋势参考</span>
         </div>
         <div className="bmi-value"><strong>{bmi.toFixed(1)}</strong><span>{getBmiLabel(bmi)}</span></div>
+      </div>
+
+      <div className="fat-trend-card">
+        <div className="fat-trend-heading">
+          <div><span className="bmi-label">脂肪趋势指数</span><span className="bmi-note">基于 BMI 的可视化参考</span></div>
+          <strong>{Math.round(fatIndex * 100)}<small>/ 100</small></strong>
+        </div>
+        <div className="fat-meter"><i style={{ width: `${Math.max(5, fatIndex * 100)}%` }} /></div>
+        <div className="fat-trend-footer"><span>{fatLabel}趋势</span><button className={showFatLayer ? "enabled" : ""} onClick={() => setShowFatLayer(!showFatLayer)} aria-pressed={showFatLayer}>{showFatLayer ? "已显示脂肪层" : "显示脂肪层"}</button></div>
       </div>
     </section>
   );

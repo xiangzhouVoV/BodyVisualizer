@@ -16,6 +16,7 @@ export function App() {
   const targetWeightKg = useBodyStore((state) => state.targetWeightKg);
   const targetMeasurements = useBodyStore((state) => state.targetMeasurements);
   const activeProfile = useBodyStore((state) => state.activeProfile);
+  const showFatLayer = useBodyStore((state) => state.showFatLayer);
   const viewMode = useBodyStore((state) => state.viewMode);
   const setViewMode = useBodyStore((state) => state.setViewMode);
   const reset = useBodyStore((state) => state.reset);
@@ -43,7 +44,7 @@ export function App() {
             <div><span className="section-kicker">3D PREVIEW · {activeProfile === "current" ? "CURRENT" : "TARGET"}</span><h1>{activeProfile === "current" ? "当前体型，" : "目标体型，"}<em>由你定义</em></h1></div>
             <span className="asset-status"><i />PARAMETRIC MODEL</span>
           </div>
-          <div className="canvas-wrap"><BodyCanvas profile={{ modelType, ...previewProfile, viewMode }} viewMode={viewMode} onViewModeChange={setViewMode} onCanvasReady={setCanvas} /><div className="canvas-hint">拖动旋转&nbsp; · &nbsp;滚轮缩放</div></div>
+          <div className="canvas-wrap"><BodyCanvas profile={{ modelType, ...previewProfile, viewMode }} showFatLayer={showFatLayer} viewMode={viewMode} onViewModeChange={setViewMode} onCanvasReady={setCanvas} /><div className="canvas-hint">拖动旋转&nbsp; · &nbsp;滚轮缩放</div></div>
           <div className="stage-footer"><ViewControls /><ScreenshotButton canvas={canvas} /></div>
         </section>
 

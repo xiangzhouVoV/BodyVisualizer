@@ -14,6 +14,7 @@ interface BodyStore {
   targetHeightCm: number;
   targetWeightKg: number;
   targetMeasurements: CircumferenceAdjustments;
+  showFatLayer: boolean;
   setModelType: (modelType: ModelType) => void;
   setActiveProfile: (profile: ProfileSlot) => void;
   setHeightCm: (heightCm: number) => void;
@@ -21,6 +22,7 @@ interface BodyStore {
   setViewMode: (viewMode: ViewMode) => void;
   setMeasurements: (measurements: Partial<CircumferenceAdjustments>) => void;
   copyCurrentToTarget: () => void;
+  setShowFatLayer: (showFatLayer: boolean) => void;
   reset: () => void;
 }
 
@@ -36,6 +38,7 @@ export const useBodyStore = create<BodyStore>()(
       targetHeightCm: DEFAULT_PROFILE.female.heightCm,
       targetWeightKg: 50,
       targetMeasurements: { ...DEFAULT_CIRCUMFERENCE_ADJUSTMENTS },
+      showFatLayer: false,
       setModelType: (modelType) => set({ modelType }),
       setActiveProfile: (activeProfile) => set({ activeProfile }),
       setHeightCm: (heightCm) => set((state) => state.activeProfile === "current" ? { heightCm } : { targetHeightCm: heightCm }),
@@ -49,6 +52,7 @@ export const useBodyStore = create<BodyStore>()(
         targetWeightKg: state.weightKg,
         targetMeasurements: { ...state.measurements },
       })),
+      setShowFatLayer: (showFatLayer) => set({ showFatLayer }),
       reset: () =>
         set({
           modelType: "female",
@@ -60,6 +64,7 @@ export const useBodyStore = create<BodyStore>()(
           targetHeightCm: DEFAULT_PROFILE.female.heightCm,
           targetWeightKg: 50,
           targetMeasurements: { ...DEFAULT_CIRCUMFERENCE_ADJUSTMENTS },
+          showFatLayer: false,
         }),
     }),
     {

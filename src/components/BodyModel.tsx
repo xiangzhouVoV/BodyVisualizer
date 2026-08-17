@@ -58,15 +58,57 @@ function Limb({ name, transform, rotation = 0 }: { name: BodyPartName; transform
   );
 }
 
+function FatLayer({ dimensions }: { dimensions: { armLength: number; armRadius: number; bodyFat: number; calfLength: number; chestDepth: number; chestWidth: number; legRadius: number; legTop: number; pelvisWidth: number; shoulderWidth: number; thighLength: number; torsoLength: number; waistDepth: number; waistWidth: number } }) {
+  const { armLength, armRadius, bodyFat, calfLength, chestDepth, chestWidth, legRadius, legTop, pelvisWidth, shoulderWidth, thighLength, torsoLength, waistDepth, waistWidth } = dimensions;
+  const opacity = 0.12 + bodyFat * 0.42;
+  const extraRadius = 0.025 + bodyFat * 0.06;
+  const shoulderY = legTop + torsoLength * 0.82;
+  const sides = [
+    { side: -1, label: "left" },
+    { side: 1, label: "right" },
+  ] as const;
+  return (
+    <group name="fat-layer" renderOrder={2}>
+      <AnimatedMesh name="fat-chest" transform={{ position: [0, legTop + torsoLength * 0.64, chestDepth * 0.12], scale: [chestWidth / 2 + bodyFat * 0.035, torsoLength * 0.22 + bodyFat * 0.04, chestDepth / 2 + 0.025] }}>
+        <sphereGeometry args={[1, 24, 18]} /><meshStandardMaterial color="#e38b5d" roughness={0.88} transparent opacity={opacity} depthWrite={false} />
+      </AnimatedMesh>
+      <AnimatedMesh name="fat-waist" transform={{ position: [0, legTop + torsoLength * 0.23, waistDepth * 0.13], scale: [waistWidth / 2 + bodyFat * 0.04, torsoLength * 0.2 + bodyFat * 0.05, waistDepth / 2 + 0.03] }}>
+        <sphereGeometry args={[1, 24, 18]} /><meshStandardMaterial color="#e38b5d" roughness={0.88} transparent opacity={opacity} depthWrite={false} />
+      </AnimatedMesh>
+      <AnimatedMesh name="fat-hip" transform={{ position: [0, legTop - 0.015, 0.08], scale: [pelvisWidth / 2 + bodyFat * 0.04, 0.085 + bodyFat * 0.025, 0.11 + bodyFat * 0.03] }}>
+        <sphereGeometry args={[1, 24, 18]} /><meshStandardMaterial color="#e38b5d" roughness={0.88} transparent opacity={opacity} depthWrite={false} />
+      </AnimatedMesh>
+      {sides.map(({ side, label }) => {
+        const legX = side * pelvisWidth * 0.24;
+        return (
+          <group key={`fat-${label}`}>
+            <AnimatedMesh name={`fat-${label}-upper-arm` as BodyPartName} transform={{ position: [side * (shoulderWidth / 2 + 0.07), shoulderY - armLength * 0.28, 0.018], scale: [armRadius + extraRadius, armLength * 0.55 / 3, armRadius + extraRadius] }} rotation={[0, 0, side * -0.15]}>
+              <capsuleGeometry args={[1, 1, 10, 18]} /><meshStandardMaterial color="#e38b5d" roughness={0.88} transparent opacity={opacity} depthWrite={false} />
+            </AnimatedMesh>
+            <AnimatedMesh name={`fat-${label}-forearm` as BodyPartName} transform={{ position: [side * (shoulderWidth / 2 + 0.12), shoulderY - armLength * 0.77, 0.018], scale: [armRadius * 0.83 + extraRadius, armLength * 0.48 / 3, armRadius * 0.83 + extraRadius] }} rotation={[0, 0, side * -0.08]}>
+              <capsuleGeometry args={[1, 1, 10, 18]} /><meshStandardMaterial color="#e38b5d" roughness={0.88} transparent opacity={opacity} depthWrite={false} />
+            </AnimatedMesh>
+            <AnimatedMesh name={`fat-${label}-thigh` as BodyPartName} transform={{ position: [legX, 0.08 + calfLength + thighLength / 2, 0.018], scale: [legRadius + extraRadius, thighLength / 3, legRadius + extraRadius] }}>
+              <capsuleGeometry args={[1, 1, 10, 18]} /><meshStandardMaterial color="#e38b5d" roughness={0.88} transparent opacity={opacity} depthWrite={false} />
+            </AnimatedMesh>
+            <AnimatedMesh name={`fat-${label}-calf` as BodyPartName} transform={{ position: [legX, 0.08 + calfLength / 2, 0.018], scale: [legRadius * 0.82 + extraRadius, calfLength / 3, legRadius * 0.82 + extraRadius] }}>
+              <capsuleGeometry args={[1, 1, 10, 18]} /><meshStandardMaterial color="#e38b5d" roughness={0.88} transparent opacity={opacity} depthWrite={false} />
+            </AnimatedMesh>
+          </group>
+        );
+      })}
+    </group>
+  );
+}
+
 /**
- * Current modular renderer. It consumes only semantic BodyProfile inputs and
- * named part transforms. Replace this component with either a GLB
- * Armature/SkinnedMesh/MorphTarget renderer or another modular renderer without
- * touching UI, Zustand, BMI, camera, or export code.
+ * Modular fallback renderer. It consumes only semantic BodyProfile inputs and
+ * named part transforms. ModelAdapter selects this renderer when the formal GLB
+ * asset is unavailable, so UI, state, camera, and export code remain untouched.
  */
-export function BodyModel({ profile }: { profile: BodyProfile }) {
+export function BodyModel({ profile, showFatLayer }: { profile: BodyProfile; showFatLayer: boolean }) {
   const {
-    armLength, armRadius, calfLength, chestDepth, chestWidth, isFemale,
+    armLength, armRadius, bodyFat, calfLength, chestDepth, chestWidth, isFemale,
     legRadius, legTop, pelvisWidth, shoulderWidth, thighLength, torsoLength,
     waistDepth, waistWidth,
   } = calculateBodyDimensions(profile);
@@ -123,6 +165,7 @@ export function BodyModel({ profile }: { profile: BodyProfile }) {
         <sphereGeometry args={[1, 28, 22]} />
         <meshStandardMaterial color={outfit} roughness={0.67} />
       </AnimatedMesh>
+      {showFatLayer && <FatLayer dimensions={{ armLength, armRadius, bodyFat, calfLength, chestDepth, chestWidth, legRadius, legTop, pelvisWidth, shoulderWidth, thighLength, torsoLength, waistDepth, waistWidth }} />}
       <AnimatedMesh name="neck" transform={{ position: [0, legTop + torsoLength + 0.055, 0], scale: [0.055, 0.065, 0.055] }}>
         <cylinderGeometry args={[1, 1, 2, 16]} />
         <meshStandardMaterial color={skinShadow} roughness={0.72} />

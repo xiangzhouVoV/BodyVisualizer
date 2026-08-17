@@ -26,3 +26,5 @@ npm run build
 - 响应式控制面板与免责声明
 
 当前仓库未提供具备骨骼和 Shape Key 的商用 GLB 人体资产，因此 3D 画布使用了参数化占位人体，验证完整的交互链路。接入正式资产时，应按 [`技术方案.md`](./技术方案.md) 的骨骼和 Morph Target 命名规范，在 `src/components/BodyModel.tsx` 中替换占位实现。
+
+正式模型的自动加载约定和 Blender 交付规范见 [public/models/README.md](./public/models/README.md)。当对应 GLB 存在时，`ModelAdapter` 会优先加载它；否则保持占位人体。

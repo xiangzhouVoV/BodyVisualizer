@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { OrbitControls as OrbitControlsImpl } from "three/addons/controls/OrbitControls.js";
 
 import type { BodyProfile, ViewMode } from "../types/body";
-import { BodyModel } from "./BodyModel";
+import { ModelAdapter } from "./ModelAdapter";
 
 const CAMERA_VIEWS: Record<Exclude<ViewMode, "free">, [number, number, number]> = {
   front: [0, 1.12, 3.1],
@@ -46,11 +46,13 @@ function CameraController({ viewMode, onViewModeChange }: { viewMode: ViewMode; 
 
 export function BodyCanvas({
   profile,
+  showFatLayer,
   viewMode,
   onViewModeChange,
   onCanvasReady,
 }: {
   profile: BodyProfile;
+  showFatLayer: boolean;
   viewMode: ViewMode;
   onViewModeChange: (view: ViewMode) => void;
   onCanvasReady: (canvas: HTMLCanvasElement) => void;
@@ -68,7 +70,7 @@ export function BodyCanvas({
       <hemisphereLight args={["#fff8ed", "#9aa5b1", 1.1]} />
       <directionalLight position={[3, 5, 4]} intensity={2.4} castShadow shadow-mapSize={[1024, 1024]} />
       <directionalLight position={[-4, 2, -2]} intensity={0.65} />
-      <BodyModel profile={profile} />
+      <ModelAdapter profile={profile} showFatLayer={showFatLayer} />
       <mesh position={[0, -0.01, 0]} receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[4, 64]} />
         <shadowMaterial transparent opacity={0.22} />

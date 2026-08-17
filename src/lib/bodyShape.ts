@@ -20,11 +20,23 @@ export type BodyPartName =
   | "left-upper-arm"
   | "right-upper-arm"
   | "left-forearm"
-  | "right-forearm";
+  | "right-forearm"
+  | "fat-chest"
+  | "fat-waist"
+  | "fat-hip"
+  | "fat-left-upper-arm"
+  | "fat-right-upper-arm"
+  | "fat-left-forearm"
+  | "fat-right-forearm"
+  | "fat-left-thigh"
+  | "fat-right-thigh"
+  | "fat-left-calf"
+  | "fat-right-calf";
 
 export interface BodyDimensions {
   armLength: number;
   armRadius: number;
+  bodyFat: number;
   calfLength: number;
   chestDepth: number;
   chestWidth: number;
@@ -61,6 +73,7 @@ export function calculateBodyDimensions({ modelType, heightCm, weightKg, measure
   return {
     armLength: 0.38 * (1 + (heightRatio - 1) * 0.1),
     armRadius: 0.065 + morphs.arm * 0.034 + armAdjustment * 0.43,
+    bodyFat: morphs.bodyFat,
     calfLength,
     chestDepth: 0.15 + morphs.chest * 0.06 + bustAdjustment * 0.72,
     chestWidth: (isFemale ? 0.4 : 0.48) + morphs.chest * 0.12 + bustAdjustment,
