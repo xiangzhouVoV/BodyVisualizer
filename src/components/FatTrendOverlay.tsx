@@ -43,7 +43,7 @@ function createRegionalFatMaterial(bounds: THREE.Box3, opacity: number, profile:
     DEFAULT_PROFILE[profile.modelType].weightKg,
   ).bodyFat;
   const bodyFatDelta = getWeightMorphs(profile.heightCm, profile.weightKg).bodyFat - baseFat;
-  const weightShapeGain = profile.modelType === "female" ? "1.65" : "1.00";
+  const weightShapeGain = profile.modelType === "female" ? "0.80" : "1.00";
   const regionalBias = profile.modelType === "female"
     ? { chest: 0.6, waist: 0.9, hip: 1.28, thigh: 1.2, calf: 0.32, arm: 0.62 }
     : { chest: 0.78, waist: 1.3, hip: 0.62, thigh: 0.82, calf: 0.42, arm: 0.88 };
@@ -193,9 +193,11 @@ export function FatTrendOverlay({
   // Keep a normal-weight body mostly visible, then ramp coverage quickly
   // after the high-normal BMI range so obesity reads as a real outer layer.
   const normalVisibility = profile.modelType === "male" ? 0.26 : 0.18;
-  const fatGrowth = profile.modelType === "male" ? 0.32 : 0.50;
-  const obesityGrowth = profile.modelType === "male" ? 0.65 : 1.05;
-  const maxCoverage = profile.modelType === "male" ? 0.72 : 0.88;
+  const fatGrowth = profile.modelType === "male" ? 0.32 : 0.36;
+  const obesityGrowth = profile.modelType === "male" ? 0.65 : 0.55;
+  // Keep the female shell translucent at high weight so the anatomical
+  // silhouette remains readable beneath the illustrative fat visualization.
+  const maxCoverage = profile.modelType === "male" ? 0.72 : 0.62;
   const opacity = Math.min(maxCoverage, normalVisibility + fat * fatGrowth + Math.max(0, fat - 0.38) * obesityGrowth);
 
   // A duplicate of the actual body surface is used when a GLB is available.
@@ -226,55 +228,69 @@ export function FatTrendOverlay({
 
   useEffect(() => {
     if (!model || !surface) return;
-    const sourceObjects: THREE.Object3D[] = [];
-    const overlayObjects: THREE.Object3D[] = [];
-    model.traverse((object) => sourceObjects.push(object));
-    surface.traverse((object) => overlayObjects.push(object));
-    sourceObjects.forEach((source, index) => {
-      const target = overlayObjects[index];
-      if (!target) return;
-      target.position.copy(source.position);
-      target.quaternion.copy(source.quaternion);
-      target.scale.copy(source.scale);
-      target.visible = source.visible && !(target instanceof THREE.Mesh && isDetailMesh(target));
-      // SkeletonUtils normally shares geometry, but explicit attribute sync
-      // keeps the overlay attached even when an imported GLB clone owns its
-      // own BufferGeometry instance.
-      if (source instanceof THREE.Mesh && target instanceof THREE.Mesh && source.geometry !== target.geometry) {
-        const sourcePosition = source.geometry.getAttribute("position");
-        const targetPosition = target.geometry.getAttribute("position");
-        if (sourcePosition && targetPosition && sourcePosition.count === targetPosition.count) {
-          targetPosition.array.set(sourcePosition.array);
-          targetPosition.needsUpdate = true;
-          target.geometry.computeBoundingBox();
+    const sync = () => {
+      const sourceObjects: THREE.Object3D[] = [];
+      const overlayObjects: THREE.Object3D[] = [];
+      model.traverse((object) => sourceObjects.push(object));
+      surface.traverse((object) => overlayObjects.push(object));
+      sourceObjects.forEach((source, index) => {
+        const target = overlayObjects[index];
+        if (!target) return;
+        target.position.copy(source.position);
+        target.quaternion.copy(source.quaternion);
+        target.scale.copy(source.scale);
+        target.visible = source.visible && !(target instanceof THREE.Mesh && isDetailMesh(target));
+        // SkeletonUtils normally shares geometry, but explicit attribute sync
+        // keeps the overlay attached even when an imported GLB clone owns its
+        // own BufferGeometry instance.
+        if (source instanceof THREE.Mesh && target instanceof THREE.Mesh) {
+          const sourcePosition = source.geometry.getAttribute("position");
+          const targetPosition = target.geometry.getAttribute("position");
+          if (sourcePosition && targetPosition && sourcePosition.count === targetPosition.count) {
+            // Always sync, including when the clone happens to share the same
+            // BufferGeometry reference. This guarantees the overlay cannot keep
+            // a pre-deformation snapshot after a profile update.
+            if (targetPosition.array !== sourcePosition.array) {
+              targetPosition.array.set(sourcePosition.array);
+              targetPosition.needsUpdate = true;
+            }
+            target.geometry.computeBoundingBox();
+          }
         }
-      }
-      if (source instanceof THREE.Mesh && target instanceof THREE.Mesh && source.morphTargetInfluences && target.morphTargetInfluences) {
-        target.morphTargetInfluences = [...source.morphTargetInfluences];
-      }
-    });
-    surface.updateMatrixWorld(true);
-    surface.traverse((object) => {
-      if (!(object instanceof THREE.Mesh)) return;
-      const material = object.material as THREE.MeshBasicMaterial;
-      material.opacity = opacity;
-      const uniforms = material.userData.fatUniforms as Record<string, { value: number }> | undefined;
-      if (!uniforms) return;
-      uniforms.fatLevel.value = fat;
-      const currentBmi = calculateBMI(profile.heightCm, profile.weightKg);
-      const baseBmi = calculateBMI(DEFAULT_PROFILE[profile.modelType].heightCm, DEFAULT_PROFILE[profile.modelType].weightKg);
-      const baseFat = getWeightMorphs(
-        DEFAULT_PROFILE[profile.modelType].heightCm,
-        DEFAULT_PROFILE[profile.modelType].weightKg,
-      ).bodyFat;
-      uniforms.bmiDelta.value = currentBmi - baseBmi;
-      uniforms.bodyFatDelta.value = fat - baseFat;
-      uniforms.bustAdjustCm.value = profile.measurements.bustAdjustCm;
-      uniforms.waistAdjustCm.value = profile.measurements.waistAdjustCm;
-      uniforms.hipAdjustCm.value = profile.measurements.hipAdjustCm;
-      uniforms.armAdjustCm.value = profile.measurements.armAdjustCm;
-      uniforms.legAdjustCm.value = profile.measurements.legAdjustCm;
-    });
+        if (source instanceof THREE.Mesh && target instanceof THREE.Mesh && source.morphTargetInfluences && target.morphTargetInfluences) {
+          target.morphTargetInfluences = [...source.morphTargetInfluences];
+        }
+      });
+      surface.updateMatrixWorld(true);
+      surface.traverse((object) => {
+        if (!(object instanceof THREE.Mesh)) return;
+        const material = object.material as THREE.MeshBasicMaterial;
+        material.opacity = opacity;
+        const uniforms = material.userData.fatUniforms as Record<string, { value: number }> | undefined;
+        if (!uniforms) return;
+        uniforms.fatLevel.value = fat;
+        const currentBmi = calculateBMI(profile.heightCm, profile.weightKg);
+        const baseBmi = calculateBMI(DEFAULT_PROFILE[profile.modelType].heightCm, DEFAULT_PROFILE[profile.modelType].weightKg);
+        const baseFat = getWeightMorphs(
+          DEFAULT_PROFILE[profile.modelType].heightCm,
+          DEFAULT_PROFILE[profile.modelType].weightKg,
+        ).bodyFat;
+        uniforms.bmiDelta.value = currentBmi - baseBmi;
+        uniforms.bodyFatDelta.value = fat - baseFat;
+        uniforms.bustAdjustCm.value = profile.measurements.bustAdjustCm;
+        uniforms.waistAdjustCm.value = profile.measurements.waistAdjustCm;
+        uniforms.hipAdjustCm.value = profile.measurements.hipAdjustCm;
+        uniforms.armAdjustCm.value = profile.measurements.armAdjustCm;
+        uniforms.legAdjustCm.value = profile.measurements.legAdjustCm;
+      });
+    };
+
+    // The body deformation is applied by a sibling effect. Repeat after the
+    // browser commits the frame so a newly deformed source cannot leave the
+    // transparent shell one update behind.
+    sync();
+    const frame = requestAnimationFrame(sync);
+    return () => cancelAnimationFrame(frame);
   }, [model, opacity, surface, profile]);
 
   if (surface) return <primitive object={surface} />;

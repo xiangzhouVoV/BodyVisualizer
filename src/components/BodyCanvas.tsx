@@ -65,7 +65,7 @@ export function BodyCanvas({
       gl={{ antialias: true, preserveDrawingBuffer: true }}
       onCreated={({ gl }) => onCanvasReady(gl.domElement)}
     >
-      <color attach="background" args={["#e8e7e1"]} />
+      <color attach="background" args={["#efeee9"]} />
       <ambientLight intensity={1.25} />
       <hemisphereLight args={["#fff8ed", "#9aa5b1", 1.1]} />
       <directionalLight position={[3, 5, 4]} intensity={2.4} castShadow shadow-mapSize={[1024, 1024]} />

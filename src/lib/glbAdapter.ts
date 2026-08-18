@@ -139,7 +139,10 @@ function applyRegionalShaderShape(
   bmiDelta: number,
   bodyFatDelta: number,
 ) {
-  const weightShapeGain = profile.modelType === "female" ? "1.65" : "1.00";
+  // The female sculpt already has a broad hip/chest silhouette. Keep the
+  // weight-driven shell subtle so high weights do not make the whole figure
+  // balloon beyond the intended body proportions.
+  const weightShapeGain = profile.modelType === "female" ? "0.80" : "1.00";
   const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
   materials.forEach((material) => {
     const existing = material.userData.regionalShapeUniforms as RegionalShapeUniforms | undefined;
@@ -242,7 +245,7 @@ function applyLocalStaticShape(
   const target = position.array as Float32Array;
   const { bustAdjustCm, waistAdjustCm, hipAdjustCm, armAdjustCm, legAdjustCm } = profile.measurements;
   const regionalBias = getRegionalFatBias(profile.modelType);
-  const weightShapeGain = profile.modelType === "female" ? 1.65 : 1.0;
+  const weightShapeGain = profile.modelType === "female" ? 0.80 : 1.0;
 
   for (let index = 0; index < source.length; index += 3) {
     const x = source[index];
@@ -397,7 +400,7 @@ export function applyProfileToGlb(
   // weight-only volume baseline, then layer the regional deformation on top.
   // Circumference sliders are intentionally excluded from this factor.
   const femaleWeightVolume = profile.modelType === "female"
-    ? clamp(1 + bmiDelta * 0.008 + bodyFatDelta * 0.08, 0.88, 1.16)
+    ? clamp(1 + bmiDelta * 0.002 + bodyFatDelta * 0.015, 0.96, 1.04)
     : 1;
   // Static source meshes have no regional Shape Keys. Apply each circumference
   // control directly (rather than diluting one slider across five controls),
@@ -421,7 +424,10 @@ export function applyProfileToGlb(
     const baseScale = baseMeshScales.get(mesh.uuid);
     if (!baseScale) return;
     mesh.scale.copy(baseScale);
-    if (!hasBodyMorphs && isBodySurface(mesh)) {
+    if (!isBodySurface(mesh)) return;
+    let globalWidth = 1;
+    let globalDepth = 1;
+    if (!hasBodyMorphs) {
       const hasLocalShape = applyLocalStaticShape(mesh, baseMeshGeometry, profile, bmiDelta, bodyFatDelta);
       const base = baseMeshGeometry.get(mesh.uuid);
       const position = mesh.geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
@@ -431,10 +437,11 @@ export function applyProfileToGlb(
       }
       // Regional CPU and GPU paths already provide the circumference response;
       // only assets without either path use the coarse whole-body fallback.
-      const globalWidth = hasLocalShape || hasShaderShape ? 1 : widthScale;
-      const globalDepth = hasLocalShape || hasShaderShape ? 1 : depthScale;
-      mesh.scale.x = baseScale.x * globalWidth * femaleWeightVolume;
-      mesh.scale.z = baseScale.z * globalDepth * femaleWeightVolume;
+      globalWidth = hasLocalShape || hasShaderShape ? 1 : widthScale;
+      globalDepth = hasLocalShape || hasShaderShape ? 1 : depthScale;
     }
+    // Female weight volume is independent from the asset's Shape Key status.
+    mesh.scale.x = baseScale.x * globalWidth * femaleWeightVolume;
+    mesh.scale.z = baseScale.z * globalDepth * femaleWeightVolume;
   });
 }

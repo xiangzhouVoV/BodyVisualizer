@@ -84,7 +84,9 @@ function RiggedGlbModel({ source, profile, showFatLayer }: { source: THREE.Objec
           const next = material.clone() as THREE.MeshStandardMaterial;
           // Preserve authored textured models, while neutralising untextured
           // anatomy assets so the yellow fat layer remains visually distinct.
-          if (!next.map) next.color.set("#a9a6a0");
+          // Use a deeper neutral body tone so the silhouette remains readable
+          // against the light preview canvas and the yellow fat overlay.
+          if (!next.map) next.color.set("#625d56");
           next.roughness = Math.max(next.roughness, 0.62);
           next.metalness = 0;
           return next;
@@ -92,6 +94,29 @@ function RiggedGlbModel({ source, profile, showFatLayer }: { source: THREE.Objec
         object.material = hasMultipleMaterials ? styledMaterials : styledMaterials[0];
       }
     });
+
+    // The female Sketchfab export contains a rotated/scaled FBX hierarchy.
+    // Bake that static hierarchy into the mesh once so regional deformation
+    // uses the same upright local axes as the male asset. This is limited to
+    // the female static asset and does not affect the male model's established
+    // transform path.
+    if (profile.modelType === "female") {
+      cloned.updateMatrixWorld(true);
+      const bakedMeshes: THREE.Mesh[] = [];
+      cloned.traverse((object) => {
+        if (object instanceof THREE.Mesh) bakedMeshes.push(object);
+      });
+      bakedMeshes.forEach((mesh) => {
+        mesh.geometry.applyMatrix4(mesh.matrixWorld);
+      });
+      cloned.traverse((object) => {
+        object.position.set(0, 0, 0);
+        object.quaternion.identity();
+        object.scale.set(1, 1, 1);
+        object.updateMatrix();
+      });
+      cloned.updateMatrixWorld(true);
+    }
 
     // Different source tools use different units and origins. Normalize every
     // completed asset to the product's default height and place its feet at y=0.
