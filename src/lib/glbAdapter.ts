@@ -400,7 +400,7 @@ export function applyProfileToGlb(
   // weight-only volume baseline, then layer the regional deformation on top.
   // Circumference sliders are intentionally excluded from this factor.
   const femaleWeightVolume = profile.modelType === "female"
-    ? clamp(1 + bmiDelta * 0.002 + bodyFatDelta * 0.015, 0.96, 1.04)
+    ? clamp(1 + bmiDelta * 0.006 + bodyFatDelta * 0.05, 0.94, 1.12)
     : 1;
   // Static source meshes have no regional Shape Keys. Apply each circumference
   // control directly (rather than diluting one slider across five controls),
@@ -427,6 +427,8 @@ export function applyProfileToGlb(
     if (!isBodySurface(mesh)) return;
     let globalWidth = 1;
     let globalDepth = 1;
+    // The active female asset is now a closed Remesh surface, so it can use
+    // the same continuous GPU regional deformation path as the male model.
     if (!hasBodyMorphs) {
       const hasLocalShape = applyLocalStaticShape(mesh, baseMeshGeometry, profile, bmiDelta, bodyFatDelta);
       const base = baseMeshGeometry.get(mesh.uuid);
@@ -439,6 +441,12 @@ export function applyProfileToGlb(
       // only assets without either path use the coarse whole-body fallback.
       globalWidth = hasLocalShape || hasShaderShape ? 1 : widthScale;
       globalDepth = hasLocalShape || hasShaderShape ? 1 : depthScale;
+    }
+    if (profile.modelType === "female" && hasBodyMorphs) {
+      // Keep authored female Shape Keys authoritative when a future asset
+      // provides them; the current remeshed asset uses the shader path above.
+      globalWidth = clamp(1 + circumferenceWidthDelta, 0.92, 1.18);
+      globalDepth = clamp(1 + circumferenceDepthDelta, 0.92, 1.16);
     }
     // Female weight volume is independent from the asset's Shape Key status.
     mesh.scale.x = baseScale.x * globalWidth * femaleWeightVolume;

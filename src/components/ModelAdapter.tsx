@@ -116,6 +116,7 @@ function RiggedGlbModel({ source, profile, showFatLayer }: { source: THREE.Objec
         object.updateMatrix();
       });
       cloned.updateMatrixWorld(true);
+
     }
 
     // Different source tools use different units and origins. Normalize every

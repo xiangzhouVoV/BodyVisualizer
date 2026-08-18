@@ -47,7 +47,12 @@ function createRegionalFatMaterial(bounds: THREE.Box3, opacity: number, profile:
   const regionalBias = profile.modelType === "female"
     ? { chest: 0.6, waist: 0.9, hip: 1.28, thigh: 1.2, calf: 0.32, arm: 0.62 }
     : { chest: 0.78, waist: 1.3, hip: 0.62, thigh: 0.82, calf: 0.42, arm: 0.88 };
-  const fatMaskGrowth = profile.modelType === "male" ? 0.72 : 1.10;
+  // Keep the mask envelope shared by both models. Gender-specific fat
+  // distribution still comes from regionalBias; the mask itself should not
+  // erase the female surface at high weight.
+  const fatMaskGrowth = 0.72;
+  const fatMaskBase = "0.06";
+  const fatMaskGain = "0.55";
   const uniforms = {
     fatLevel: { value: 0 },
     minY: { value: bounds.min.y },
@@ -70,10 +75,12 @@ function createRegionalFatMaterial(bounds: THREE.Box3, opacity: number, profile:
     calfBias: { value: regionalBias.calf },
     armBias: { value: regionalBias.arm },
   };
-  const material = new THREE.MeshBasicMaterial({
+  const material = new THREE.MeshStandardMaterial({
     color: "#ffdc73",
     transparent: true,
     opacity,
+    roughness: 0.86,
+    metalness: 0,
     // The overlay uses the same deformed surface as the body. Disabling depth
     // testing prevents tiny vertex-shader precision differences from hiding
     // the fat layer behind the source mesh.
@@ -157,7 +164,7 @@ float distribution = chest * chestBias + waist * waistBias + hip * hipBias + thi
   // At normal BMI this remains a translucent trend overlay. At high BMI it
   // becomes an almost opaque regional shell, so the original slim surface is
   // no longer visually dominant beneath the added fat volume.
-  vFatMask = clamp(0.06 + distribution * (0.55 + fatLevel * ${fatMaskGrowth}), 0.0, 1.0);`,
+  vFatMask = clamp(${fatMaskBase} + distribution * (${fatMaskGain} + fatLevel * ${fatMaskGrowth}), 0.0, 1.0);`,
     );
     shader.fragmentShader = shader.fragmentShader.replace(
       "#include <common>",
@@ -190,14 +197,13 @@ export function FatTrendOverlay({
   rootScale?: [number, number, number];
 }) {
   const fat = getWeightMorphs(profile.heightCm, profile.weightKg).bodyFat;
-  // Keep a normal-weight body mostly visible, then ramp coverage quickly
-  // after the high-normal BMI range so obesity reads as a real outer layer.
-  const normalVisibility = profile.modelType === "male" ? 0.26 : 0.18;
-  const fatGrowth = profile.modelType === "male" ? 0.32 : 0.36;
-  const obesityGrowth = profile.modelType === "male" ? 0.65 : 0.55;
-  // Keep the female shell translucent at high weight so the anatomical
-  // silhouette remains readable beneath the illustrative fat visualization.
-  const maxCoverage = profile.modelType === "male" ? 0.72 : 0.62;
+  // Keep the body surface readable at every weight. The overlay is a visual
+  // fat trend, not a replacement shell: use the same coverage envelope for
+  // both models so the female view does not turn into a flat yellow cutout.
+  const normalVisibility = 0.26;
+  const fatGrowth = 0.32;
+  const obesityGrowth = 0.65;
+  const maxCoverage = 0.72;
   const opacity = Math.min(maxCoverage, normalVisibility + fat * fatGrowth + Math.max(0, fat - 0.38) * obesityGrowth);
 
   // A duplicate of the actual body surface is used when a GLB is available.

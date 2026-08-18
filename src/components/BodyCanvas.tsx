@@ -7,17 +7,21 @@ import type { BodyProfile, ViewMode } from "../types/body";
 import { ModelAdapter } from "./ModelAdapter";
 
 const CAMERA_VIEWS: Record<Exclude<ViewMode, "free">, [number, number, number]> = {
-  front: [0, 1.12, 3.1],
-  back: [0, 1.12, -3.1],
-  left: [-3.1, 1.12, 0],
-  right: [3.1, 1.12, 0],
+  front: [0, 0, 1],
+  back: [0, 0, -1],
+  left: [-1, 0, 0],
+  right: [1, 0, 0],
 };
 
-function CameraController({ viewMode, onViewModeChange }: { viewMode: ViewMode; onViewModeChange: (view: ViewMode) => void }) {
+function CameraController({ heightCm, viewMode, onViewModeChange }: { heightCm: number; viewMode: ViewMode; onViewModeChange: (view: ViewMode) => void }) {
   const { camera, gl } = useThree();
   const controls = useRef<OrbitControlsImpl | null>(null);
-  const target = useMemo(() => new THREE.Vector3(0, 1.05, 0), []);
+  // Models are grounded at y=0. Target the height midpoint so the camera
+  // keeps a small, consistent margin above the head and below the feet.
+  const modelHeight = Math.max(1.4, heightCm / 100);
+  const target = useMemo(() => new THREE.Vector3(0, modelHeight * 0.5, 0), [modelHeight]);
   const position = useMemo(() => new THREE.Vector3(), []);
+  const distance = 3.1 * (modelHeight / 1.75);
 
   useEffect(() => {
     const orbit = new OrbitControlsImpl(camera, gl.domElement);
@@ -35,7 +39,8 @@ function CameraController({ viewMode, onViewModeChange }: { viewMode: ViewMode; 
     const orbit = controls.current;
     if (!orbit) return;
     if (viewMode === "free") return;
-    position.fromArray(CAMERA_VIEWS[viewMode]);
+    const view = CAMERA_VIEWS[viewMode];
+    position.set(view[0] * distance, target.y + 0.08, view[2] * distance);
     camera.position.lerp(position, 1 - Math.exp(-7 * delta));
     orbit.target.lerp(target, 1 - Math.exp(-7 * delta));
     orbit.update();
@@ -61,7 +66,7 @@ export function BodyCanvas({
     <Canvas
       shadows
       dpr={[1, 2]}
-      camera={{ position: CAMERA_VIEWS.front, fov: 34 }}
+      camera={{ position: [0, 0.95, 3.1], fov: 34 }}
       gl={{ antialias: true, preserveDrawingBuffer: true }}
       onCreated={({ gl }) => onCanvasReady(gl.domElement)}
     >
@@ -75,7 +80,7 @@ export function BodyCanvas({
         <circleGeometry args={[4, 64]} />
         <shadowMaterial transparent opacity={0.22} />
       </mesh>
-      <CameraController viewMode={viewMode} onViewModeChange={onViewModeChange} />
+      <CameraController heightCm={profile.heightCm} viewMode={viewMode} onViewModeChange={onViewModeChange} />
     </Canvas>
   );
 }
