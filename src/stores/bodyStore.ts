@@ -38,7 +38,7 @@ export const useBodyStore = create<BodyStore>()(
       targetHeightCm: DEFAULT_PROFILE.female.heightCm,
       targetWeightKg: 50,
       targetMeasurements: { ...DEFAULT_CIRCUMFERENCE_ADJUSTMENTS },
-      showFatLayer: false,
+      showFatLayer: true,
       setModelType: (modelType) => set({ modelType }),
       setActiveProfile: (activeProfile) => set({ activeProfile }),
       setHeightCm: (heightCm) => set((state) => state.activeProfile === "current" ? { heightCm } : { targetHeightCm: heightCm }),
@@ -64,18 +64,19 @@ export const useBodyStore = create<BodyStore>()(
           targetHeightCm: DEFAULT_PROFILE.female.heightCm,
           targetWeightKg: 50,
           targetMeasurements: { ...DEFAULT_CIRCUMFERENCE_ADJUSTMENTS },
-          showFatLayer: false,
+          showFatLayer: true,
         }),
     }),
     {
       name: "body-visualizer-profile",
-      version: 1,
+      version: 2,
       migrate: (persistedState) => {
         const state = persistedState as Partial<BodyStore>;
         return {
           ...state,
           measurements: { ...DEFAULT_CIRCUMFERENCE_ADJUSTMENTS, ...state.measurements },
           targetMeasurements: { ...DEFAULT_CIRCUMFERENCE_ADJUSTMENTS, ...state.targetMeasurements },
+          showFatLayer: true,
         } as BodyStore;
       },
     },
