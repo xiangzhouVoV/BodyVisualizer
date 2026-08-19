@@ -51,7 +51,7 @@ export function BodyControls() {
   const activeHeightCm = isCurrent ? heightCm : targetHeightCm;
   const activeWeightKg = isCurrent ? weightKg : targetWeightKg;
   const activeMeasurements = isCurrent ? measurements : targetMeasurements;
-  const activeLabel = isCurrent ? "当前体型" : "目标体型";
+  const activeLabel = isCurrent ? "Current Shape" : "Target Shape";
   const setActiveProfile = useBodyStore((state) => state.setActiveProfile);
   const setHeightCm = useBodyStore((state) => state.setHeightCm);
   const setModelType = useBodyStore((state) => state.setModelType);
@@ -61,71 +61,71 @@ export function BodyControls() {
   const setShowFatLayer = useBodyStore((state) => state.setShowFatLayer);
   const bmi = calculateBMI(activeHeightCm, activeWeightKg);
   const fatIndex = getWeightMorphs(activeHeightCm, activeWeightKg).bodyFat;
-  const fatLabel = fatIndex < 0.33 ? "较低" : fatIndex < 0.66 ? "中等" : "较高";
+  const fatLabel = fatIndex < 0.33 ? "Low" : fatIndex < 0.66 ? "Moderate" : "High";
 
   const selectModel = (next: ModelType) => {
     setModelType(next);
   };
 
   return (
-    <section className="control-card" aria-label="体型参数">
+    <section className="control-card" aria-label="Body shape controls">
       <div className="section-kicker">CUSTOMIZE</div>
-      <h2>调整体型</h2>
-      <p className="section-description">分别录入当前与目标数据，切换预览体型</p>
+      <h2>Customize Body Shape</h2>
+      <p className="section-description">Enter current and target data to compare body shapes</p>
 
-      <div className="profile-switch" role="group" aria-label="编辑体型">
-        <button className={isCurrent ? "selected" : ""} onClick={() => setActiveProfile("current")}>当前体型</button>
-        <button className={!isCurrent ? "selected" : ""} onClick={() => setActiveProfile("target")}>目标体型</button>
+      <div className="profile-switch" role="group" aria-label="Body shape profile">
+        <button className={isCurrent ? "selected" : ""} onClick={() => setActiveProfile("current")}>Current Shape</button>
+        <button className={!isCurrent ? "selected" : ""} onClick={() => setActiveProfile("target")}>Target Shape</button>
       </div>
-      {!isCurrent && <button className="copy-profile-button" onClick={copyCurrentToTarget}>↙ 复制当前数据作为目标</button>}
+      {!isCurrent && <button className="copy-profile-button" onClick={copyCurrentToTarget}>↙ Copy Current Data as Target</button>}
 
-      <div className="model-switch" role="group" aria-label="模型类型">
+      <div className="model-switch" role="group" aria-label="Model type">
         <button className={modelType === "female" ? "selected" : ""} onClick={() => selectModel("female")}>
-          <span className="model-icon">♀</span>女性
+          <span className="model-icon">♀</span>Female
         </button>
         <button className={modelType === "male" ? "selected" : ""} onClick={() => selectModel("male")}>
-          <span className="model-icon">♂</span>男性
+          <span className="model-icon">♂</span>Male
         </button>
       </div>
 
       <div className="controls-divider" />
-      <RangeControl label={`${activeLabel}身高`} value={activeHeightCm} min={140} max={200} unit=" cm" onChange={setHeightCm} />
-      <RangeControl label={`${activeLabel}体重`} value={activeWeightKg} min={35} max={130} unit=" kg" onChange={setWeightKg} />
+      <RangeControl label={`${activeLabel} Height`} value={activeHeightCm} min={140} max={200} unit=" cm" onChange={setHeightCm} />
+      <RangeControl label={`${activeLabel} Weight`} value={activeWeightKg} min={35} max={130} unit=" kg" onChange={setWeightKg} />
 
       <button
         className={`measurements-toggle ${showMeasurements ? "open" : ""}`}
         onClick={() => setShowMeasurements((open) => !open)}
         aria-expanded={showMeasurements}
       >
-        <span><b>＋</b> 围度微调</span><small>{showMeasurements ? "收起" : "三围 / 臂围 / 腿围"}</small>
+        <span><b>＋</b> Measurement Adjustments</span><small>{showMeasurements ? "Collapse" : "Bust / Waist / Hip / Arms / Legs"}</small>
       </button>
 
       {showMeasurements && (
         <div className="measurements-panel">
-          <p>基于{activeLabel}的身高、体重做局部视觉校准</p>
-          <RangeControl label="胸围" value={activeMeasurements.bustAdjustCm} min={-15} max={15} unit=" cm" signed onChange={(bustAdjustCm) => setMeasurements({ bustAdjustCm })} />
-          <RangeControl label="腰围" value={activeMeasurements.waistAdjustCm} min={-15} max={15} unit=" cm" signed onChange={(waistAdjustCm) => setMeasurements({ waistAdjustCm })} />
-          <RangeControl label="臀围" value={activeMeasurements.hipAdjustCm} min={-15} max={15} unit=" cm" signed onChange={(hipAdjustCm) => setMeasurements({ hipAdjustCm })} />
-          <RangeControl label="臂围" value={activeMeasurements.armAdjustCm} min={-15} max={15} unit=" cm" signed onChange={(armAdjustCm) => setMeasurements({ armAdjustCm })} />
-          <RangeControl label="腿围" value={activeMeasurements.legAdjustCm} min={-15} max={15} unit=" cm" signed onChange={(legAdjustCm) => setMeasurements({ legAdjustCm })} />
+          <p>Fine-tune local proportions based on {activeLabel.toLowerCase()} height and weight</p>
+          <RangeControl label="Bust" value={activeMeasurements.bustAdjustCm} min={-15} max={15} unit=" cm" signed onChange={(bustAdjustCm) => setMeasurements({ bustAdjustCm })} />
+          <RangeControl label="Waist" value={activeMeasurements.waistAdjustCm} min={-15} max={15} unit=" cm" signed onChange={(waistAdjustCm) => setMeasurements({ waistAdjustCm })} />
+          <RangeControl label="Hip" value={activeMeasurements.hipAdjustCm} min={-15} max={15} unit=" cm" signed onChange={(hipAdjustCm) => setMeasurements({ hipAdjustCm })} />
+          <RangeControl label="Arm" value={activeMeasurements.armAdjustCm} min={-15} max={15} unit=" cm" signed onChange={(armAdjustCm) => setMeasurements({ armAdjustCm })} />
+          <RangeControl label="Leg" value={activeMeasurements.legAdjustCm} min={-15} max={15} unit=" cm" signed onChange={(legAdjustCm) => setMeasurements({ legAdjustCm })} />
         </div>
       )}
 
       <div className="bmi-panel">
         <div>
-          <span className="bmi-label">身体质量指数 BMI</span>
-          <span className="bmi-note">仅供体型趋势参考</span>
+          <span className="bmi-label">Body Mass Index (BMI)</span>
+          <span className="bmi-note">For body-shape reference only</span>
         </div>
         <div className="bmi-value"><strong>{bmi.toFixed(1)}</strong><span>{getBmiLabel(bmi)}</span></div>
       </div>
 
       <div className="fat-trend-card">
         <div className="fat-trend-heading">
-          <div><span className="bmi-label">脂肪趋势指数</span><span className="bmi-note">基于 BMI 的可视化参考</span></div>
+          <div><span className="bmi-label">Fat Trend Index</span><span className="bmi-note">Visual reference based on BMI</span></div>
           <strong>{Math.round(fatIndex * 100)}<small>/ 100</small></strong>
         </div>
         <div className="fat-meter"><i style={{ width: `${Math.max(5, fatIndex * 100)}%` }} /></div>
-        <div className="fat-trend-footer"><span>{fatLabel}趋势</span><button className={showFatLayer ? "enabled" : ""} onClick={() => setShowFatLayer(!showFatLayer)} aria-pressed={showFatLayer}>{showFatLayer ? "已显示脂肪层" : "显示脂肪层"}</button></div>
+        <div className="fat-trend-footer"><span>{fatLabel} trend</span><button className={showFatLayer ? "enabled" : ""} onClick={() => setShowFatLayer(!showFatLayer)} aria-pressed={showFatLayer}>{showFatLayer ? "Fat Layer Shown" : "Show Fat Layer"}</button></div>
       </div>
     </section>
   );

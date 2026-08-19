@@ -54,13 +54,11 @@ export function BodyCanvas({
   showFatLayer,
   viewMode,
   onViewModeChange,
-  onCanvasReady,
 }: {
   profile: BodyProfile;
   showFatLayer: boolean;
   viewMode: ViewMode;
   onViewModeChange: (view: ViewMode) => void;
-  onCanvasReady: (canvas: HTMLCanvasElement) => void;
 }) {
   return (
     <Canvas
@@ -68,7 +66,6 @@ export function BodyCanvas({
       dpr={[1, 2]}
       camera={{ position: [0, 0.95, 3.1], fov: 34 }}
       gl={{ antialias: true, preserveDrawingBuffer: true }}
-      onCreated={({ gl }) => onCanvasReady(gl.domElement)}
     >
       <color attach="background" args={["#efeee9"]} />
       <ambientLight intensity={1.25} />
@@ -84,3 +81,5 @@ export function BodyCanvas({
     </Canvas>
   );
 }
+
+export default BodyCanvas;

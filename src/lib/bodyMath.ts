@@ -30,8 +30,8 @@ export function getWeightMorphs(heightCm: number, weightKg: number) {
 }
 
 export function getBmiLabel(bmi: number) {
-  if (bmi < 18.5) return "偏瘦";
-  if (bmi < 24) return "健康范围";
-  if (bmi < 28) return "偏高";
-  return "较高";
+  if (bmi < 18.5) return "Underweight";
+  if (bmi < 24) return "Normal range";
+  if (bmi < 28) return "Overweight";
+  return "High";
 }
