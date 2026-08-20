@@ -98,8 +98,8 @@ function smoothstep(edge0: number, edge1: number, value: number) {
  */
 function getRegionalFatBias(modelType: ModelType) {
   return modelType === "female"
-    ? { chest: 0.6, waist: 0.9, hip: 1.28, thigh: 1.2, calf: 0.32, arm: 0.62 }
-    : { chest: 0.78, waist: 1.3, hip: 0.62, thigh: 0.82, calf: 0.42, arm: 0.88 };
+    ? { chest: 0.38, waist: 1.55, hip: 1.65, thigh: 1.5, calf: 0.18, arm: 0.28 }
+    : { chest: 0.6, waist: 2.35, hip: 0.42, thigh: 0.95, calf: 0.25, arm: 0.36 };
 }
 
 function getRegionalShapeUniforms(
@@ -182,19 +182,21 @@ float regionalBell(float value, float center, float width) {
           `#include <begin_vertex>
 float relativeY = clamp((position.y - minY) / height, 0.0, 1.0);
 float horizontalDistance = abs(position.x - centerX) / halfWidth;
-float arm = clamp((horizontalDistance - 0.52) / 0.28, 0.0, 1.0) * regionalBell(relativeY, 0.62, 0.19);
-float chest = regionalBell(relativeY, 0.74, 0.09) * (1.0 - arm * 0.65);
-float waist = regionalBell(relativeY, 0.56, 0.10) * (1.0 - arm * 0.70);
-float hip = regionalBell(relativeY, 0.43, 0.11) * (1.0 - arm * 0.45);
-float thigh = regionalBell(relativeY, 0.28, 0.12) * (1.0 - arm);
-float calf = regionalBell(relativeY, 0.11, 0.09) * (1.0 - arm);
+float armZone = clamp((horizontalDistance - 0.42) / 0.22, 0.0, 1.0);
+float arm = armZone * smoothstep(0.48, 0.58, relativeY);
+float chest = regionalBell(relativeY, 0.74, 0.09) * (1.0 - armZone * 0.90);
+float waist = regionalBell(relativeY, 0.56, 0.10) * (1.0 - armZone);
+float hip = regionalBell(relativeY, 0.43, 0.11) * (1.0 - armZone);
+float thigh = regionalBell(relativeY, 0.28, 0.12) * (1.0 - armZone);
+float calf = regionalBell(relativeY, 0.11, 0.09) * (1.0 - armZone);
 float headMask = smoothstep(0.86, 0.96, relativeY);
 float distribution = chest * chestBias + waist * waistBias + hip * hipBias + thigh * thighBias + calf * calfBias + arm * armBias;
-float bodyMask = clamp(0.1 + distribution * 0.48, 0.08, 0.9) * (1.0 - headMask * 0.97);
+float fatEligible = max(max(max(chest, waist), max(hip, thigh)), max(calf, arm)) * (1.0 - headMask * 0.97);
+float bodyMask = clamp(fatEligible * (0.32 + distribution * 0.48), 0.0, 0.9);
 float measurementX = chest * bustAdjustCm * 0.002 + waist * waistAdjustCm * 0.010 + hip * hipAdjustCm * 0.007 + arm * armAdjustCm * 0.0065 + (thigh + calf * 0.6) * legAdjustCm * 0.0065;
 float measurementZ = chest * bustAdjustCm * 0.0012 + waist * waistAdjustCm * 0.002 + hip * hipAdjustCm * 0.007 + arm * armAdjustCm * 0.006 + (thigh + calf * 0.6) * legAdjustCm * 0.006;
-float weightX = (bmiDelta * 0.002 * bodyMask + bodyFatDelta * (0.018 + distribution * 0.10) * (1.0 - headMask)) * ${weightShapeGain};
-float weightZ = (bmiDelta * 0.0018 * bodyMask + bodyFatDelta * (0.02 + distribution * 0.12) * (1.0 - headMask)) * ${weightShapeGain};
+float weightX = (bmiDelta * 0.002 * bodyMask + bodyFatDelta * fatEligible * (0.018 + distribution * 0.10)) * ${weightShapeGain};
+float weightZ = (bmiDelta * 0.0018 * bodyMask + bodyFatDelta * fatEligible * (0.02 + distribution * 0.12)) * ${weightShapeGain};
 float xDirection = position.x >= centerX ? 1.0 : -1.0;
 float zDirection = position.z >= centerZ ? 1.0 : -1.0;
 float xSurface = clamp(horizontalDistance, 0.0, 1.0);
@@ -253,12 +255,16 @@ function applyLocalStaticShape(
     const z = source[index + 2];
     const relativeY = (y - min.y) / height;
     const horizontalDistance = Math.abs(x - centerX) / halfWidth;
-    const armMask = Math.max(0, Math.min(1, (horizontalDistance - 0.52) / 0.28)) * bell(relativeY, 0.62, 0.19);
-    const chest = bell(relativeY, 0.74, 0.09) * (1 - armMask * 0.65);
-    const waist = bell(relativeY, 0.56, 0.10) * (1 - armMask * 0.7);
-    const hip = bell(relativeY, 0.43, 0.11) * (1 - armMask * 0.45);
-    const thigh = bell(relativeY, 0.28, 0.12) * (1 - armMask);
-    const calf = bell(relativeY, 0.11, 0.09) * (1 - armMask);
+    // Separate the whole lateral limb zone from the part that may receive a
+    // small arm-fat response. This keeps torso/leg masks off the hands, and
+    // excludes wrists/fingers from both the body deformation and fat overlay.
+    const armZone = Math.max(0, Math.min(1, (horizontalDistance - 0.42) / 0.22));
+    const armMask = armZone * smoothstep(0.48, 0.58, relativeY);
+    const chest = bell(relativeY, 0.74, 0.09) * (1 - armZone * 0.9);
+    const waist = bell(relativeY, 0.56, 0.10) * (1 - armZone);
+    const hip = bell(relativeY, 0.43, 0.11) * (1 - armZone);
+    const thigh = bell(relativeY, 0.28, 0.12) * (1 - armZone);
+    const calf = bell(relativeY, 0.11, 0.09) * (1 - armZone);
     // Keep the skull and neck structurally stable. The remaining areas blend
     // into each other through bell curves, so the fallback avoids hard rings
     // at the waist, hip, or knee when sliders change.
@@ -270,7 +276,8 @@ function applyLocalStaticShape(
       thigh * regionalBias.thigh +
       calf * regionalBias.calf +
       armMask * regionalBias.arm;
-    const bodyMask = clamp(0.1 + fatDistribution * 0.48, 0.08, 0.9) * (1 - headMask * 0.97);
+    const fatEligible = Math.max(chest, waist, hip, thigh, calf, armMask) * (1 - headMask * 0.97);
+    const bodyMask = clamp(fatEligible * (0.32 + fatDistribution * 0.48), 0, 0.9);
     // Circumference controls intentionally use different directional profiles:
     // bust projects mostly toward the viewer, waist spreads side-to-side,
     // hips grow in both axes, and limbs thicken radially.
@@ -290,8 +297,8 @@ function applyLocalStaticShape(
     // term is intentionally stronger and regional, so a jump from a normal
     // weight to obesity produces a visibly rounder silhouette rather than a
     // thin yellow shell sitting over an unchanged body.
-    const weightX = (bmiDelta * 0.002 * bodyMask + bodyFatDelta * (0.018 + fatDistribution * 0.10) * (1 - headMask)) * weightShapeGain;
-    const weightZ = (bmiDelta * 0.0018 * bodyMask + bodyFatDelta * (0.02 + fatDistribution * 0.12) * (1 - headMask)) * weightShapeGain;
+    const weightX = (bmiDelta * 0.002 * bodyMask + bodyFatDelta * fatEligible * (0.018 + fatDistribution * 0.10)) * weightShapeGain;
+    const weightZ = (bmiDelta * 0.0018 * bodyMask + bodyFatDelta * fatEligible * (0.02 + fatDistribution * 0.12)) * weightShapeGain;
     const xDirection = x >= centerX ? 1 : -1;
     const zDirection = z >= centerZ ? 1 : -1;
     const xSurface = Math.max(0, Math.min(1, horizontalDistance));
@@ -362,7 +369,13 @@ export function applyProfileToGlb(
     scene.position.y = baseModelTransform.position.y * heightRatio;
   }
 
-  const weightMorphs = getWeightMorphs(profile.heightCm, profile.weightKg);
+  // Keep the source body at its baseline weight. Weight-driven volume belongs
+  // to FatTrendOverlay; applying it here would make the muscle/body mesh grow
+  // even when the user turns the fat layer off.
+  const weightMorphs = getWeightMorphs(
+    DEFAULT_PROFILE[profile.modelType].heightCm,
+    DEFAULT_PROFILE[profile.modelType].weightKg,
+  );
   const { bustAdjustCm, waistAdjustCm, hipAdjustCm, armAdjustCm, legAdjustCm } = profile.measurements;
   const heightFix = Math.min(1, Math.abs(profile.heightCm - DEFAULT_PROFILE[profile.modelType].heightCm) / 25);
   const morphs: Record<string, number> = {
@@ -388,20 +401,15 @@ export function applyProfileToGlb(
   // A MakeHuman base export has a rig but no body-shape morphs. Keep the
   // height behaviour above and provide a visible, reversible BMI fallback
   // until Blender-authored Shape Keys replace it.
-  const baseBmi = calculateBMI(DEFAULT_PROFILE[profile.modelType].heightCm, DEFAULT_PROFILE[profile.modelType].weightKg);
-  const bmiDelta = calculateBMI(profile.heightCm, profile.weightKg) - baseBmi;
-  const baseBodyFat = getWeightMorphs(
-    DEFAULT_PROFILE[profile.modelType].heightCm,
-    DEFAULT_PROFILE[profile.modelType].weightKg,
-  ).bodyFat;
-  const bodyFatDelta = weightMorphs.bodyFat - baseBodyFat;
-  // The female sculpt has very smooth, layered surfaces, so its local vertex
-  // offsets can be hard to read at the product camera distance. Add a modest
-  // weight-only volume baseline, then layer the regional deformation on top.
-  // Circumference sliders are intentionally excluded from this factor.
-  const femaleWeightVolume = profile.modelType === "female"
-    ? clamp(1 + bmiDelta * 0.006 + bodyFatDelta * 0.05, 0.94, 1.12)
-    : 1;
+  // The body mesh deliberately receives no BMI/weight delta. The fat overlay
+  // computes that delta independently and renders it as the outer layer.
+  const bmiDelta = 0;
+  const bodyFatDelta = 0;
+  // Do not scale the entire female mesh for weight: that would enlarge
+  // fingers, toes, and facial details along with the torso. The regional
+  // deformation path below supplies the weight volume only where fat is
+  // eligible (waist, hips, thighs, and a small arm contribution).
+  const femaleWeightVolume = 1;
   // Static source meshes have no regional Shape Keys. Apply each circumference
   // control directly (rather than diluting one slider across five controls),
   // so a single +15 cm adjustment remains clearly visible in this MVP fallback.

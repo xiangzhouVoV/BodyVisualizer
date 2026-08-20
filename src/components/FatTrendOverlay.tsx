@@ -43,16 +43,21 @@ function createRegionalFatMaterial(bounds: THREE.Box3, opacity: number, profile:
     DEFAULT_PROFILE[profile.modelType].weightKg,
   ).bodyFat;
   const bodyFatDelta = getWeightMorphs(profile.heightCm, profile.weightKg).bodyFat - baseFat;
-  const weightShapeGain = profile.modelType === "female" ? "0.80" : "1.00";
+  // The male source model has a broader base mesh than the female remesh.
+  // Use a smaller outer-volume gain so its fat layer stays attached rather
+  // than reading as a detached shell.
+  const weightShapeGain = profile.modelType === "female" ? "0.80" : "0.72";
+  const abdomenProjectionGain = profile.modelType === "female" ? "0.012" : "0.035";
+  const hipBandWidth = profile.modelType === "female" ? "0.11" : "0.16";
   const regionalBias = profile.modelType === "female"
-    ? { chest: 0.6, waist: 0.9, hip: 1.28, thigh: 1.2, calf: 0.32, arm: 0.62 }
-    : { chest: 0.78, waist: 1.3, hip: 0.62, thigh: 0.82, calf: 0.42, arm: 0.88 };
+    ? { chest: 0.38, waist: 1.55, hip: 1.65, thigh: 1.5, calf: 0.18, arm: 0.28 }
+    : { chest: 0.6, waist: 2.35, hip: 0.42, thigh: 0.95, calf: 0.25, arm: 0.36 };
   // Keep the mask envelope shared by both models. Gender-specific fat
   // distribution still comes from regionalBias; the mask itself should not
   // erase the female surface at high weight.
-  const fatMaskGrowth = 0.72;
-  const fatMaskBase = "0.06";
-  const fatMaskGain = "0.55";
+  const fatMaskGrowth = 0.82;
+  const fatMaskBase = "0.02";
+  const fatMaskGain = "0.62";
   const uniforms = {
     fatLevel: { value: 0 },
     minY: { value: bounds.min.y },
@@ -74,16 +79,19 @@ function createRegionalFatMaterial(bounds: THREE.Box3, opacity: number, profile:
     thighBias: { value: regionalBias.thigh },
     calfBias: { value: regionalBias.calf },
     armBias: { value: regionalBias.arm },
+    faceBias: { value: profile.modelType === "female" ? 0.34 : 0.24 },
+    // Only the fat above the asset's baseline is pushed outward. This gives
+    // the added layer a visible edge without separating a normal-weight body.
+    fatShellDepth: { value: Math.max(0, bodyFatDelta) * (profile.modelType === "female" ? 0.045 : 0.022) },
   };
+  // Keep one stable material type for both assets. This avoids shader-cache
+  // mismatches while the shared regional fat shader is compiled.
   const material = new THREE.MeshStandardMaterial({
-    color: "#ffdc73",
+    color: "#f4ce63",
     transparent: true,
     opacity,
-    roughness: 0.86,
+    roughness: 0.94,
     metalness: 0,
-    // The overlay uses the same deformed surface as the body. Disabling depth
-    // testing prevents tiny vertex-shader precision differences from hiding
-    // the fat layer behind the source mesh.
     depthTest: false,
     depthWrite: false,
     side: THREE.DoubleSide,
@@ -110,6 +118,8 @@ uniform float hipBias;
 uniform float thighBias;
 uniform float calfBias;
 uniform float armBias;
+uniform float faceBias;
+uniform float fatShellDepth;
 ${useShapeShader ? `uniform float halfDepth;
 uniform float bmiDelta;
 uniform float bodyFatDelta;
@@ -127,19 +137,25 @@ float fatBell(float value, float center, float width) {
       ? `
 float shapeVertical = clamp((position.y - minY) / height, 0.0, 1.0);
 float shapeLateral = abs(position.x - centerX) / halfWidth;
-float shapeArm = clamp((shapeLateral - 0.52) / 0.28, 0.0, 1.0) * fatBell(shapeVertical, 0.62, 0.19);
-float shapeChest = fatBell(shapeVertical, 0.74, 0.09) * (1.0 - shapeArm * 0.65);
-float shapeWaist = fatBell(shapeVertical, 0.56, 0.10) * (1.0 - shapeArm * 0.70);
-float shapeHip = fatBell(shapeVertical, 0.43, 0.11) * (1.0 - shapeArm * 0.45);
-float shapeThigh = fatBell(shapeVertical, 0.28, 0.12) * (1.0 - shapeArm);
-float shapeCalf = fatBell(shapeVertical, 0.11, 0.09) * (1.0 - shapeArm);
-float shapeHead = smoothstep(0.86, 0.96, shapeVertical);
-float shapeDistribution = shapeChest * chestBias + shapeWaist * waistBias + shapeHip * hipBias + shapeThigh * thighBias + shapeCalf * calfBias + shapeArm * armBias;
-float shapeBodyMask = clamp(0.1 + shapeDistribution * 0.48, 0.08, 0.9) * (1.0 - shapeHead * 0.97);
+float shapeArmZone = clamp((shapeLateral - 0.42) / 0.22, 0.0, 1.0);
+float shapeArm = shapeArmZone * smoothstep(0.48, 0.58, shapeVertical);
+float shapeChest = fatBell(shapeVertical, 0.74, 0.09) * (1.0 - shapeArmZone * 0.90);
+float shapeWaist = fatBell(shapeVertical, 0.56, 0.10) * (1.0 - shapeArmZone);
+float shapeHip = fatBell(shapeVertical, 0.43, ${hipBandWidth}) * (1.0 - shapeArmZone);
+float shapeThigh = fatBell(shapeVertical, 0.28, 0.12) * (1.0 - shapeArmZone);
+float shapeCalf = fatBell(shapeVertical, 0.11, 0.09) * (1.0 - shapeArmZone);
+float shapeFace = fatBell(shapeVertical, 0.84, 0.08) * (1.0 - smoothstep(0.18, 0.56, shapeLateral));
+float shapeHead = smoothstep(0.94, 0.99, shapeVertical);
+float shapeDistribution = shapeChest * chestBias + shapeWaist * waistBias + shapeHip * hipBias + shapeThigh * thighBias + shapeCalf * calfBias + shapeArm * armBias + shapeFace * faceBias;
+float shapeFatEligible = max(max(max(shapeChest, shapeWaist), max(shapeHip, shapeThigh)), max(max(shapeCalf, shapeArm), shapeFace)) * (1.0 - shapeHead * 0.97);
+float shapeBodyMask = clamp(shapeFatEligible * (0.32 + shapeDistribution * 0.48), 0.0, 0.9);
 float shapeMeasurementX = shapeChest * bustAdjustCm * 0.002 + shapeWaist * waistAdjustCm * 0.010 + shapeHip * hipAdjustCm * 0.007 + shapeArm * armAdjustCm * 0.0065 + (shapeThigh + shapeCalf * 0.6) * legAdjustCm * 0.0065;
 float shapeMeasurementZ = shapeChest * bustAdjustCm * 0.0012 + shapeWaist * waistAdjustCm * 0.002 + shapeHip * hipAdjustCm * 0.007 + shapeArm * armAdjustCm * 0.006 + (shapeThigh + shapeCalf * 0.6) * legAdjustCm * 0.006;
-float shapeWeightX = (bmiDelta * 0.002 * shapeBodyMask + bodyFatDelta * (0.018 + shapeDistribution * 0.10) * (1.0 - shapeHead)) * ${weightShapeGain};
-float shapeWeightZ = (bmiDelta * 0.0018 * shapeBodyMask + bodyFatDelta * (0.02 + shapeDistribution * 0.12) * (1.0 - shapeHead)) * ${weightShapeGain};
+float shapeWeightX = (bmiDelta * 0.002 * shapeBodyMask + bodyFatDelta * shapeFatEligible * (0.018 + shapeDistribution * 0.10)) * ${weightShapeGain};
+float shapeWeightZ = (bmiDelta * 0.0018 * shapeBodyMask + bodyFatDelta * shapeFatEligible * (0.02 + shapeDistribution * 0.12)) * ${weightShapeGain};
+// Concentrate male weight gain in the abdomen with a forward projection,
+// rather than enlarging the full torso uniformly.
+shapeWeightZ += shapeWaist * bodyFatDelta * ${abdomenProjectionGain};
 float shapeXDirection = position.x >= centerX ? 1.0 : -1.0;
 float shapeZDirection = position.z >= centerZ ? 1.0 : -1.0;
 float shapeXSurface = clamp(shapeLateral, 0.0, 1.0);
@@ -154,17 +170,23 @@ transformed.z += shapeZDirection * (shapeWeightZ + shapeMeasurementZ) * shapeZSu
       `#include <begin_vertex>${shapeVertexShader}
 float vertical = clamp((position.y - minY) / height, 0.0, 1.0);
 float lateral = abs(position.x - centerX) / halfWidth;
-float arm = smoothstep(0.50, 0.86, lateral) * fatBell(vertical, 0.62, 0.24);
-float chest = fatBell(vertical, 0.74, 0.10) * (1.0 - arm * 0.65);
-float waist = fatBell(vertical, 0.56, 0.11) * (1.0 - arm * 0.72);
-float hip = fatBell(vertical, 0.43, 0.12) * (1.0 - arm * 0.42);
-float thigh = fatBell(vertical, 0.27, 0.16) * (1.0 - arm);
-float calf = fatBell(vertical, 0.11, 0.09) * (1.0 - arm);
-float distribution = chest * chestBias + waist * waistBias + hip * hipBias + thigh * thighBias + calf * calfBias + arm * armBias;
+float armZone = smoothstep(0.42, 0.64, lateral);
+float arm = armZone * smoothstep(0.48, 0.58, vertical);
+float chest = fatBell(vertical, 0.74, 0.10) * (1.0 - armZone * 0.90);
+float waist = fatBell(vertical, 0.56, 0.11) * (1.0 - armZone);
+float hip = fatBell(vertical, 0.43, ${profile.modelType === "female" ? "0.12" : "0.16"}) * (1.0 - armZone);
+float thigh = fatBell(vertical, 0.27, 0.16) * (1.0 - armZone);
+float calf = fatBell(vertical, 0.11, 0.09) * (1.0 - armZone);
+float face = fatBell(vertical, 0.84, 0.08) * (1.0 - smoothstep(0.18, 0.56, lateral));
+float distribution = chest * chestBias + waist * waistBias + hip * hipBias + thigh * thighBias + calf * calfBias + arm * armBias + face * faceBias;
+float fatEligible = max(max(max(chest, waist), max(hip, thigh)), max(max(calf, arm), face)) * (1.0 - smoothstep(0.94, 0.99, vertical) * 0.97);
+// Separate the excess-fat portion from the base body with a shallow normal
+// offset. The shell still follows every body deformation and slider change.
+transformed += normalize(objectNormal) * fatShellDepth * clamp(distribution, 0.0, 1.0);
   // At normal BMI this remains a translucent trend overlay. At high BMI it
   // becomes an almost opaque regional shell, so the original slim surface is
   // no longer visually dominant beneath the added fat volume.
-  vFatMask = clamp(${fatMaskBase} + distribution * (${fatMaskGain} + fatLevel * ${fatMaskGrowth}), 0.0, 1.0);`,
+  vFatMask = clamp(fatEligible * (${fatMaskBase} + distribution * (${fatMaskGain} + fatLevel * ${fatMaskGrowth})), 0.0, 1.0);`,
     );
     shader.fragmentShader = shader.fragmentShader.replace(
       "#include <common>",
@@ -175,7 +197,7 @@ float distribution = chest * chestBias + waist * waistBias + hip * hipBias + thi
       "#include <color_fragment>\ndiffuseColor.a *= vFatMask;",
     );
   };
-  material.customProgramCacheKey = () => useShapeShader ? "regional-fat-overlay-shape-v2" : "regional-fat-overlay-v1";
+  material.customProgramCacheKey = () => useShapeShader ? "regional-fat-overlay-shape-v5" : "regional-fat-overlay-v4";
   material.userData.fatUniforms = uniforms;
   return material;
 }
@@ -200,10 +222,10 @@ export function FatTrendOverlay({
   // Keep the body surface readable at every weight. The overlay is a visual
   // fat trend, not a replacement shell: use the same coverage envelope for
   // both models so the female view does not turn into a flat yellow cutout.
-  const normalVisibility = 0.26;
-  const fatGrowth = 0.32;
-  const obesityGrowth = 0.65;
-  const maxCoverage = 0.72;
+  const normalVisibility = profile.modelType === "female" ? 0.18 : 0.20;
+  const fatGrowth = profile.modelType === "female" ? 0.32 : 0.38;
+  const obesityGrowth = profile.modelType === "female" ? 0.65 : 0.76;
+  const maxCoverage = profile.modelType === "female" ? 0.72 : 0.78;
   const opacity = Math.min(maxCoverage, normalVisibility + fat * fatGrowth + Math.max(0, fat - 0.38) * obesityGrowth);
 
   // A duplicate of the actual body surface is used when a GLB is available.
@@ -283,6 +305,7 @@ export function FatTrendOverlay({
         ).bodyFat;
         uniforms.bmiDelta.value = currentBmi - baseBmi;
         uniforms.bodyFatDelta.value = fat - baseFat;
+        uniforms.fatShellDepth.value = Math.max(0, fat - baseFat) * (profile.modelType === "female" ? 0.045 : 0.022);
         uniforms.bustAdjustCm.value = profile.measurements.bustAdjustCm;
         uniforms.waistAdjustCm.value = profile.measurements.waistAdjustCm;
         uniforms.hipAdjustCm.value = profile.measurements.hipAdjustCm;
@@ -322,7 +345,7 @@ export function FatTrendOverlay({
         >
           <sphereGeometry args={[1, 24, 16]} />
           <meshBasicMaterial
-            color="#ffdc73"
+            color="#f4ce63"
             transparent
             opacity={opacity}
             depthWrite={false}
