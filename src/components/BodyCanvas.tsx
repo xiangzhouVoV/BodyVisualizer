@@ -33,15 +33,19 @@ function CameraController({ heightCm, viewMode, onViewModeChange }: { heightCm: 
     controls.current = orbit;
 
     return () => orbit.dispose();
-  }, [camera, gl, onViewModeChange, target]);
+  }, [camera, gl, onViewModeChange]);
 
   useFrame((_, delta) => {
     const orbit = controls.current;
     if (!orbit) return;
-    if (viewMode === "free") return;
-    const view = CAMERA_VIEWS[viewMode];
-    position.set(view[0] * distance, target.y + 0.08, view[2] * distance);
-    camera.position.lerp(position, 1 - Math.exp(-7 * delta));
+    if (viewMode !== "free") {
+      const view = CAMERA_VIEWS[viewMode];
+      position.set(view[0] * distance, target.y + 0.08, view[2] * distance);
+      camera.position.lerp(position, 1 - Math.exp(-7 * delta));
+    }
+    // Keep the current free orbit stable while the body parameters change.
+    // Reinitializing OrbitControls here would reset the look-at point and can
+    // leave only the feet centered in the canvas.
     orbit.target.lerp(target, 1 - Math.exp(-7 * delta));
     orbit.update();
   });
