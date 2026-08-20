@@ -21,6 +21,7 @@ function useGlbAsset(modelType: ModelType) {
   const cache = useRef<Partial<Record<ModelType, THREE.Object3D>>>({});
   const [asset, setAsset] = useState<{ modelType: ModelType; scene: THREE.Object3D } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -28,23 +29,41 @@ function useGlbAsset(modelType: ModelType) {
     const previewPath = MODEL_PREVIEW_PATHS[modelType];
     setAsset(null);
     setLoading(true);
+    setProgress(0);
     const cached = cache.current[modelType];
     if (cached) {
       setAsset({ modelType, scene: cached });
       setLoading(false);
+      setProgress(100);
       return () => controller.abort();
     }
 
     const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+    const updateProgress = (event: ProgressEvent<EventTarget>) => {
+      if (controller.signal.aborted) return;
+
+      // Some CDNs omit Content-Length. In that case, keep the progress bar
+      // moving without claiming a false exact percentage.
+      const percentage = event.lengthComputable && event.total > 0
+        ? Math.round((event.loaded / event.total) * 100)
+        : Math.min(90, Math.max(8, Math.round(event.loaded / 60_000)));
+      setProgress(percentage);
+    };
+
     // Paint the lightweight preview first. It is intentionally independent of
     // the high-detail cache so the production model can replace it in place.
     if (previewPath) {
-      loader.load(previewPath, (gltf) => {
-        if (!controller.signal.aborted && !cache.current[modelType]) {
-          setAsset({ modelType, scene: gltf.scene });
-          setLoading(false);
-        }
-      });
+      loader.load(
+        previewPath,
+        (gltf) => {
+          if (!controller.signal.aborted && !cache.current[modelType]) {
+            setAsset({ modelType, scene: gltf.scene });
+            setLoading(false);
+            setProgress(100);
+          }
+        },
+        updateProgress,
+      );
     }
     // Start the high-detail GLB shortly after the preview gets a chance to
     // paint. This prevents a 30MB download from competing with first paint.
@@ -55,9 +74,10 @@ function useGlbAsset(modelType: ModelType) {
         if (!controller.signal.aborted) {
           setAsset({ modelType, scene: gltf.scene });
           setLoading(false);
+          setProgress(100);
         }
       },
-      undefined,
+      updateProgress,
       () => {
         if (!controller.signal.aborted) setLoading(false);
       },
@@ -70,7 +90,7 @@ function useGlbAsset(modelType: ModelType) {
     };
   }, [modelType]);
 
-  return { asset, loading };
+  return { asset, loading, progress };
 }
 
 function getModelBounds(root: THREE.Object3D) {
@@ -191,9 +211,10 @@ function RiggedGlbModel({ source, profile, showFatLayer }: { source: THREE.Objec
  * Drop correctly named GLBs into public/models to activate the rigged path;
  * otherwise the existing procedural mannequin stays visible.
  */
-export function ModelAdapter({ profile, showFatLayer, onLoadingChange }: { profile: BodyProfile; showFatLayer: boolean; onLoadingChange?: (loading: boolean) => void }) {
-  const { asset, loading } = useGlbAsset(profile.modelType);
+export function ModelAdapter({ profile, showFatLayer, onLoadingChange, onLoadingProgress }: { profile: BodyProfile; showFatLayer: boolean; onLoadingChange?: (loading: boolean) => void; onLoadingProgress?: (progress: number) => void }) {
+  const { asset, loading, progress } = useGlbAsset(profile.modelType);
   useEffect(() => onLoadingChange?.(loading), [loading, onLoadingChange]);
+  useEffect(() => onLoadingProgress?.(progress), [onLoadingProgress, progress]);
   // Do not flash the blocky procedural mannequin while the production GLB is
   // downloading. The parent canvas shows a dedicated loading state instead.
   if (!asset) return null;

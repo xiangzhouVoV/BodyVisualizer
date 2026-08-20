@@ -8,6 +8,7 @@ const BodyCanvas = lazy(() => import("../components/BodyCanvas"));
 
 export function App() {
   const [modelLoading, setModelLoading] = useState(true);
+  const [modelLoadProgress, setModelLoadProgress] = useState(0);
   const modelType = useBodyStore((state) => state.modelType);
   const heightCm = useBodyStore((state) => state.heightCm);
   const weightKg = useBodyStore((state) => state.weightKg);
@@ -46,9 +47,18 @@ export function App() {
           </div>
           <div className="canvas-wrap" aria-label="Interactive 3D body shape visualizer">
             <Suspense fallback={<div className="canvas-loading">Loading 3D body visualizer…</div>}>
-              <BodyCanvas profile={{ modelType, ...previewProfile, viewMode }} showFatLayer={showFatLayer} viewMode={viewMode} onViewModeChange={setViewMode} onLoadingChange={setModelLoading} />
+              <BodyCanvas profile={{ modelType, ...previewProfile, viewMode }} showFatLayer={showFatLayer} viewMode={viewMode} onViewModeChange={setViewMode} onLoadingChange={setModelLoading} onLoadingProgress={setModelLoadProgress} />
             </Suspense>
-            {modelLoading && <div className="model-loading-overlay" role="status" aria-live="polite">Loading 3D body model…</div>}
+            {modelLoading && (
+              <div className="model-loading-overlay" role="status" aria-live="polite">
+                <div className="model-loading-content">
+                  <span>Loading 3D body model… {modelLoadProgress}%</span>
+                  <div className="model-loading-track" role="progressbar" aria-label="3D model loading progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={modelLoadProgress}>
+                    <i style={{ width: `${modelLoadProgress}%` }} />
+                  </div>
+                </div>
+              </div>
+            )}
             <span className="sr-only">Interactive 3D body model. Enter height, weight, and optional measurements, then rotate and zoom to explore the body shape.</span>
             <div className="canvas-hint">Drag to rotate&nbsp; · &nbsp;Scroll to zoom</div>
           </div>
