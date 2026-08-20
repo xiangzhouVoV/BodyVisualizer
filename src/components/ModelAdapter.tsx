@@ -12,6 +12,7 @@ import {
   captureBaseMeshScales,
   captureBaseModelTransform,
   MODEL_ASSET_PATHS,
+  MODEL_PREVIEW_PATHS,
 } from "../lib/glbAdapter";
 import type { BodyProfile, ModelType } from "../types/body";
 import { FatTrendOverlay } from "./FatTrendOverlay";
@@ -24,6 +25,7 @@ function useGlbAsset(modelType: ModelType) {
   useEffect(() => {
     const controller = new AbortController();
     const path = MODEL_ASSET_PATHS[modelType];
+    const previewPath = MODEL_PREVIEW_PATHS[modelType];
     setAsset(null);
     setLoading(true);
     const cached = cache.current[modelType];
@@ -33,9 +35,20 @@ function useGlbAsset(modelType: ModelType) {
       return () => controller.abort();
     }
 
-    // Start the GLB request directly. The previous HEAD probe added an extra
-    // round trip before the actual model download in production.
-    new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(
+    const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+    // Paint the lightweight preview first. It is intentionally independent of
+    // the high-detail cache so the production model can replace it in place.
+    if (previewPath) {
+      loader.load(previewPath, (gltf) => {
+        if (!controller.signal.aborted && !cache.current[modelType]) {
+          setAsset({ modelType, scene: gltf.scene });
+          setLoading(false);
+        }
+      });
+    }
+    // Start the high-detail GLB shortly after the preview gets a chance to
+    // paint. This prevents a 30MB download from competing with first paint.
+    const loadHighDetail = () => loader.load(
       path,
       (gltf) => {
         cache.current[modelType] = gltf.scene;
@@ -49,8 +62,12 @@ function useGlbAsset(modelType: ModelType) {
         if (!controller.signal.aborted) setLoading(false);
       },
     );
+    const highDetailTimer = window.setTimeout(loadHighDetail, previewPath ? 250 : 0);
 
-    return () => controller.abort();
+    return () => {
+      window.clearTimeout(highDetailTimer);
+      controller.abort();
+    };
   }, [modelType]);
 
   return { asset, loading };

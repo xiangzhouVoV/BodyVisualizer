@@ -8,6 +8,12 @@ export const MODEL_ASSET_PATHS: Record<ModelType, string> = {
   male: "/models/male-adult-v1.glb",
 };
 
+// The lightweight female asset provides an immediate first paint while the
+// higher-detail remesh is downloaded and parsed in the background.
+export const MODEL_PREVIEW_PATHS: Partial<Record<ModelType, string>> = {
+  female: "/models/female-adult-v2.glb",
+};
+
 type BoneScaleMap = Map<string, THREE.Vector3>;
 type MeshScaleMap = Map<string, THREE.Vector3>;
 type MeshGeometryMap = Map<string, { positions: Float32Array; bounds: THREE.Box3 }>;
