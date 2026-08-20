@@ -12,7 +12,6 @@ import {
   captureBaseMeshScales,
   captureBaseModelTransform,
   MODEL_ASSET_PATHS,
-  MODEL_PREVIEW_PATHS,
 } from "../lib/glbAdapter";
 import type { BodyProfile, ModelType } from "../types/body";
 import { FatTrendOverlay } from "./FatTrendOverlay";
@@ -26,7 +25,6 @@ function useGlbAsset(modelType: ModelType) {
   useEffect(() => {
     const controller = new AbortController();
     const path = MODEL_ASSET_PATHS[modelType];
-    const previewPath = MODEL_PREVIEW_PATHS[modelType];
     setAsset(null);
     setLoading(true);
     setProgress(0);
@@ -50,24 +48,9 @@ function useGlbAsset(modelType: ModelType) {
       setProgress(percentage);
     };
 
-    // Paint the lightweight preview first. It is intentionally independent of
-    // the high-detail cache so the production model can replace it in place.
-    if (previewPath) {
-      loader.load(
-        previewPath,
-        (gltf) => {
-          if (!controller.signal.aborted && !cache.current[modelType]) {
-            setAsset({ modelType, scene: gltf.scene });
-            setLoading(false);
-            setProgress(100);
-          }
-        },
-        updateProgress,
-      );
-    }
-    // Start the high-detail GLB shortly after the preview gets a chance to
-    // paint. This prevents a 30MB download from competing with first paint.
-    const loadHighDetail = () => loader.load(
+    // Load the production asset directly. The progress overlay gives users
+    // clear feedback, so a visibly different low-poly placeholder is avoided.
+    loader.load(
       path,
       (gltf) => {
         cache.current[modelType] = gltf.scene;
@@ -82,10 +65,8 @@ function useGlbAsset(modelType: ModelType) {
         if (!controller.signal.aborted) setLoading(false);
       },
     );
-    const highDetailTimer = window.setTimeout(loadHighDetail, previewPath ? 250 : 0);
 
     return () => {
-      window.clearTimeout(highDetailTimer);
       controller.abort();
     };
   }, [modelType]);

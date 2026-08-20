@@ -80,11 +80,11 @@ export function BodyControls() {
       {!isCurrent && <button className="copy-profile-button" onClick={copyCurrentToTarget}>↙ Copy Current Data as Target</button>}
 
       <div className="model-switch" role="group" aria-label="Model type">
-        <button className={modelType === "female" ? "selected" : ""} onClick={() => selectModel("female")}>
-          <span className="model-icon">♀</span>Female
-        </button>
         <button className={modelType === "male" ? "selected" : ""} onClick={() => selectModel("male")}>
           <span className="model-icon">♂</span>Male
+        </button>
+        <button className={modelType === "female" ? "selected" : ""} onClick={() => selectModel("female")}>
+          <span className="model-icon">♀</span>Female
         </button>
       </div>
 
