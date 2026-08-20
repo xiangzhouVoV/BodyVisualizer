@@ -69,7 +69,9 @@ export const useBodyStore = create<BodyStore>()(
     }),
     {
       name: "body-visualizer-profile",
-      version: 2,
+      // Version 3 makes the fat layer the default visible comparison layer,
+      // including for profiles saved by earlier builds.
+      version: 3,
       migrate: (persistedState) => {
         const state = persistedState as Partial<BodyStore>;
         return {
