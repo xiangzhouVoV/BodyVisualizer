@@ -14,44 +14,46 @@ import {
   MODEL_ASSET_PATHS,
 } from "../lib/glbAdapter";
 import type { BodyProfile, ModelType } from "../types/body";
-import { BodyModel } from "./BodyModel";
 import { FatTrendOverlay } from "./FatTrendOverlay";
 
 function useGlbAsset(modelType: ModelType) {
   const cache = useRef<Partial<Record<ModelType, THREE.Object3D>>>({});
   const [asset, setAsset] = useState<{ modelType: ModelType; scene: THREE.Object3D } | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const controller = new AbortController();
     const path = MODEL_ASSET_PATHS[modelType];
+    setAsset(null);
+    setLoading(true);
     const cached = cache.current[modelType];
     if (cached) {
       setAsset({ modelType, scene: cached });
+      setLoading(false);
       return () => controller.abort();
     }
 
-    fetch(path, { method: "HEAD", signal: controller.signal })
-      .then((response) => {
-        if (!response.ok || controller.signal.aborted) return;
-        new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(
-          path,
-          (gltf) => {
-            cache.current[modelType] = gltf.scene;
-            if (!controller.signal.aborted) setAsset({ modelType, scene: gltf.scene });
-          },
-          undefined,
-          () => {
-            // Keep the previously loaded full model visible while a new asset
-            // is unavailable, instead of flashing the procedural fallback.
-          },
-        );
-      })
-      .catch(() => undefined);
+    // Start the GLB request directly. The previous HEAD probe added an extra
+    // round trip before the actual model download in production.
+    new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(
+      path,
+      (gltf) => {
+        cache.current[modelType] = gltf.scene;
+        if (!controller.signal.aborted) {
+          setAsset({ modelType, scene: gltf.scene });
+          setLoading(false);
+        }
+      },
+      undefined,
+      () => {
+        if (!controller.signal.aborted) setLoading(false);
+      },
+    );
 
     return () => controller.abort();
   }, [modelType]);
 
-  return asset;
+  return { asset, loading };
 }
 
 function getModelBounds(root: THREE.Object3D) {
@@ -172,9 +174,12 @@ function RiggedGlbModel({ source, profile, showFatLayer }: { source: THREE.Objec
  * Drop correctly named GLBs into public/models to activate the rigged path;
  * otherwise the existing procedural mannequin stays visible.
  */
-export function ModelAdapter({ profile, showFatLayer }: { profile: BodyProfile; showFatLayer: boolean }) {
-  const asset = useGlbAsset(profile.modelType);
-  if (!asset) return <BodyModel profile={profile} showFatLayer={showFatLayer} />;
+export function ModelAdapter({ profile, showFatLayer, onLoadingChange }: { profile: BodyProfile; showFatLayer: boolean; onLoadingChange?: (loading: boolean) => void }) {
+  const { asset, loading } = useGlbAsset(profile.modelType);
+  useEffect(() => onLoadingChange?.(loading), [loading, onLoadingChange]);
+  // Do not flash the blocky procedural mannequin while the production GLB is
+  // downloading. The parent canvas shows a dedicated loading state instead.
+  if (!asset) return null;
 
   // While an uncached model is loading, retain the last complete GLB. Its own
   // defaults avoid a brief female/male scale mismatch before the new asset wins.

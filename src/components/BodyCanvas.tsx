@@ -54,11 +54,13 @@ export function BodyCanvas({
   showFatLayer,
   viewMode,
   onViewModeChange,
+  onLoadingChange,
 }: {
   profile: BodyProfile;
   showFatLayer: boolean;
   viewMode: ViewMode;
   onViewModeChange: (view: ViewMode) => void;
+  onLoadingChange?: (loading: boolean) => void;
 }) {
   return (
     <Canvas
@@ -72,7 +74,7 @@ export function BodyCanvas({
       <hemisphereLight args={["#fff8ed", "#9aa5b1", 1.1]} />
       <directionalLight position={[3, 5, 4]} intensity={2.4} castShadow shadow-mapSize={[1024, 1024]} />
       <directionalLight position={[-4, 2, -2]} intensity={0.65} />
-      <ModelAdapter profile={profile} showFatLayer={showFatLayer} />
+      <ModelAdapter profile={profile} showFatLayer={showFatLayer} onLoadingChange={onLoadingChange} />
       <mesh position={[0, -0.01, 0]} receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[4, 64]} />
         <shadowMaterial transparent opacity={0.22} />
