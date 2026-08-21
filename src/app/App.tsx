@@ -42,7 +42,7 @@ export function App() {
       <div className="workspace">
         <section className="stage-card" aria-label="3D body shape preview">
           <div className="stage-heading">
-            <div><span className="section-kicker">3D PREVIEW · {activeProfile === "current" ? "CURRENT" : "TARGET"}</span><p className="stage-title">{activeProfile === "current" ? "Current Shape, " : "Target Shape, "}<em>Defined by You</em></p></div>
+            <div><span className="section-kicker">3D PREVIEW · {activeProfile === "current" ? "CURRENT" : "TARGET"}</span><p className="stage-title">Your Body, <em>Worthy of Care</em></p></div>
             <span className="asset-status"><i />PARAMETRIC MODEL</span>
           </div>
           <div className="canvas-wrap" aria-label="Interactive 3D body shape visualizer">
