@@ -1,3 +1,108 @@
+# BodyForm · 3D Body Shape Visualizer
+
+An interactive 3D body-shape visualization tool driven by height, weight, and optional circumference adjustments. No photo upload is required: users can explore an estimated silhouette in the browser from multiple angles and compare their current and target profiles.
+
+**Live demo:** [body-simulator.com](https://body-simulator.com/)
+
+> This project provides a parametric visual reference only. It is not a substitute for medical diagnosis, body-composition testing, or professional health advice.
+
+## Features
+
+- **Live 3D preview:** Update the model instantly as inputs change; drag to rotate and scroll to zoom.
+- **Male and female models:** Switch between separate male and female base models.
+- **Core measurements:** Adjust height (140–200 cm) and weight (35–130 kg), with a live BMI reference.
+- **Local proportion controls:** Fine-tune bust, waist, hip, arm, and leg proportions.
+- **Current and target profiles:** Enter and preview two profiles independently, then copy current data into the target profile in one click.
+- **Multiple views:** Front, left, right, back, and free camera views are available.
+- **Fat-trend layer:** An illustrative BMI-based volume overlay to make parameter changes easier to understand.
+- **Local persistence:** Parameters are stored in the browser and can be reset at any time.
+- **Responsive and search-friendly:** The interface adapts to desktop and mobile screens and includes crawlable explanatory content and FAQs.
+
+## Tech Stack
+
+- [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
+- [Vite](https://vite.dev/)
+- [Three.js](https://threejs.org/) + [React Three Fiber](https://r3f.docs.pmnd.rs/)
+- [Zustand](https://zustand.docs.pmnd.rs/) for state management and local persistence
+- GLTF / GLB human-model assets
+
+## Getting Started
+
+### Requirements
+
+- Node.js 20 or later
+- npm 10 or later
+
+### Install and run
+
+```bash
+npm install
+npm run dev
+```
+
+Open the local address shown in the terminal.
+
+### Production build
+
+```bash
+npm run build
+npm run preview
+```
+
+## How to Use
+
+1. Choose a male or female model.
+2. Enter height and weight in either the **Current Shape** or **Target Shape** profile.
+3. Open **Measurement Adjustments** to refine bust, waist, hip, arm, and leg proportions.
+4. Use the view buttons, or drag and zoom directly on the 3D canvas.
+5. Toggle the fat-trend layer to view an illustrative representation of volume changes.
+
+## Project Structure
+
+```text
+src/
+├── app/          # Application entry point and overall layout
+├── components/   # Controls, 3D canvas, models, and view components
+├── lib/          # BMI, deformation parameters, and GLB adapter logic
+├── stores/       # Zustand state and local persistence
+├── styles/       # Global styles
+└── types/        # Shared TypeScript types
+public/
+└── models/       # GLB human models loaded at runtime
+```
+
+## 3D Model Assets
+
+The application loads human models from `public/models/`. The default files are:
+
+```text
+female-adult-v1.glb
+male-adult-v1.glb
+```
+
+To use custom models, follow the dimensions, skeleton, and Morph Target conventions in the [model integration guide](./public/models/README.md). For the complete deformation and asset-integration design, see the [technical specification](./技术方案.md).
+
+## Implementation Notes
+
+- BMI is calculated from height and weight, then mapped to continuous whole-body volume trend parameters.
+- Circumference controls are combined with localized deformation for the bust, waist, hips, and limbs.
+- Models are normalized to their base height; the camera moves smoothly when the selected view changes.
+- User settings are saved under the `body-visualizer-profile` key in browser localStorage. Body measurements and photos are not sent to a server by this application.
+
+## Important Notes
+
+- The displayed result is an algorithmic illustration. Real proportions vary with muscle mass, bone structure, posture, and fat distribution.
+- BMI and the fat-trend layer are general references only; neither represents actual body-fat percentage or health status.
+- The project does not collect photos, camera footage, or facial information.
+
+## Related Documentation
+
+- [SEO requirements and page-content notes](./SEO需求.md)
+- [3D deformation and model-integration specification](./技术方案.md)
+- [GLB model delivery guide](./public/models/README.md)
+
+---
+
 # BodyForm · 3D 体型模拟器
 
 一个基于身高、体重与局部围度的交互式 3D 体型可视化工具。用户无需上传照片，即可在浏览器中实时查看不同参数下的身体轮廓，并从多个视角观察当前体型或目标体型。
