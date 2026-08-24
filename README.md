@@ -97,8 +97,6 @@ To use custom models, follow the dimensions, skeleton, and Morph Target conventi
 
 ## Related Documentation
 
-- [SEO requirements and page-content notes](./SEO需求.md)
-- [3D deformation and model-integration specification](./技术方案.md)
 - [GLB model delivery guide](./public/models/README.md)
 
 ---
@@ -202,6 +200,4 @@ male-adult-v1.glb
 
 ## 相关文档
 
-- [SEO 需求与页面内容说明](./SEO需求.md)
-- [3D 形变与模型接入技术方案](./技术方案.md)
 - [GLB 模型交付规范](./public/models/README.md)
