@@ -4,7 +4,7 @@ import { calculateBMI, clamp, DEFAULT_PROFILE, getWeightMorphs } from "./bodyMat
 import type { BodyProfile, ModelType } from "../types/body";
 
 export const MODEL_ASSET_PATHS: Record<ModelType, string> = {
-  female: "/models/female-adult-v3.glb",
+  female: "/models/female-adult-v4.glb",
   male: "/models/male-adult-v1.glb",
 };
 
@@ -183,7 +183,7 @@ float regionalBell(float value, float center, float width) {
 float relativeY = clamp((position.y - minY) / height, 0.0, 1.0);
 float horizontalDistance = abs(position.x - centerX) / halfWidth;
 float armZone = clamp((horizontalDistance - 0.42) / 0.22, 0.0, 1.0);
-float arm = armZone * smoothstep(0.48, 0.58, relativeY);
+float arm = armZone * smoothstep(0.34, 0.58, relativeY);
 float chest = regionalBell(relativeY, 0.74, 0.09) * (1.0 - armZone * 0.90);
 float waist = regionalBell(relativeY, 0.56, 0.10) * (1.0 - armZone);
 float hip = regionalBell(relativeY, 0.43, 0.11) * (1.0 - armZone);

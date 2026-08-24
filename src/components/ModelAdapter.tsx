@@ -87,6 +87,95 @@ function getModelBounds(root: THREE.Object3D) {
   return bounds;
 }
 
+/**
+ * Meshopt reduces transfer size by quantizing vertex attributes. The decoded
+ * attributes are normalized integers, which are ideal for rendering but not
+ * for our runtime body-shape deformation (it writes vertex coordinates).
+ * Convert only the editable attributes back to Float32 after loading.
+ */
+function createEditableGeometry(source: THREE.BufferGeometry) {
+  const geometry = source.clone();
+
+  (["position", "normal"] as const).forEach((name) => {
+    const attribute = geometry.getAttribute(name) as THREE.BufferAttribute | undefined;
+    if (!attribute || (attribute.array instanceof Float32Array && !attribute.normalized)) return;
+
+    const values = new Float32Array(attribute.count * attribute.itemSize);
+    for (let index = 0; index < attribute.count; index += 1) {
+      values[index * attribute.itemSize] = attribute.getX(index);
+      if (attribute.itemSize > 1) values[index * attribute.itemSize + 1] = attribute.getY(index);
+      if (attribute.itemSize > 2) values[index * attribute.itemSize + 2] = attribute.getZ(index);
+      if (attribute.itemSize > 3) values[index * attribute.itemSize + 3] = attribute.getW(index);
+    }
+    geometry.setAttribute(name, new THREE.BufferAttribute(values, attribute.itemSize));
+  });
+
+  return geometry;
+}
+
+/**
+ * The remeshed female source contains one isolated 7-vertex fragment near the
+ * centre of the glutes. It is inconspicuous on the base mesh, but becomes a
+ * visible yellow block when the fat surface is offset. Exclude tiny detached
+ * islands from rendering while retaining the complete connected body mesh.
+ */
+function removeTinyDetachedIslands(geometry: THREE.BufferGeometry, minimumVertices = 32) {
+  const index = geometry.getIndex();
+  const position = geometry.getAttribute("position");
+  if (!index || !position || position.count < minimumVertices) return geometry;
+
+  const parents = new Int32Array(position.count);
+  const ranks = new Uint8Array(position.count);
+  const componentSize = new Uint32Array(position.count);
+  for (let vertex = 0; vertex < parents.length; vertex += 1) parents[vertex] = vertex;
+
+  const find = (vertex: number) => {
+    let root = vertex;
+    while (parents[root] !== root) root = parents[root];
+    while (parents[vertex] !== vertex) {
+      const next = parents[vertex];
+      parents[vertex] = root;
+      vertex = next;
+    }
+    return root;
+  };
+  const join = (left: number, right: number) => {
+    let leftRoot = find(left);
+    let rightRoot = find(right);
+    if (leftRoot === rightRoot) return;
+    if (ranks[leftRoot] < ranks[rightRoot]) [leftRoot, rightRoot] = [rightRoot, leftRoot];
+    parents[rightRoot] = leftRoot;
+    if (ranks[leftRoot] === ranks[rightRoot]) ranks[leftRoot] += 1;
+  };
+
+  const source = index.array;
+  for (let offset = 0; offset < source.length; offset += 3) {
+    join(source[offset], source[offset + 1]);
+    join(source[offset + 1], source[offset + 2]);
+  }
+  for (let vertex = 0; vertex < position.count; vertex += 1) componentSize[find(vertex)] += 1;
+
+  let keptIndexCount = 0;
+  for (let offset = 0; offset < source.length; offset += 3) {
+    if (componentSize[find(source[offset])] >= minimumVertices) keptIndexCount += 3;
+  }
+  if (keptIndexCount === source.length) return geometry;
+
+  const filtered = new Uint32Array(keptIndexCount);
+  let target = 0;
+  for (let offset = 0; offset < source.length; offset += 3) {
+    if (componentSize[find(source[offset])] < minimumVertices) continue;
+    filtered[target] = source[offset];
+    filtered[target + 1] = source[offset + 1];
+    filtered[target + 2] = source[offset + 2];
+    target += 3;
+  }
+  geometry.setIndex(new THREE.BufferAttribute(filtered, 1));
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
 function RiggedGlbModel({ source, profile, showFatLayer }: { source: THREE.Object3D; profile: BodyProfile; showFatLayer: boolean }) {
   const instance = useMemo(() => {
     const cloned = cloneSkeleton(source);
@@ -95,7 +184,10 @@ function RiggedGlbModel({ source, profile, showFatLayer }: { source: THREE.Objec
     cloned.traverse((object) => {
       if (object.name === "Cube") object.visible = false;
       if (object instanceof THREE.Mesh) {
-        object.geometry = object.geometry.clone();
+        object.geometry = createEditableGeometry(object.geometry);
+        if (profile.modelType === "female") {
+          object.geometry = removeTinyDetachedIslands(object.geometry);
+        }
         const hasMultipleMaterials = Array.isArray(object.material);
         const materials: THREE.Material[] = hasMultipleMaterials
           ? object.material as THREE.Material[]

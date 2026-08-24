@@ -138,7 +138,9 @@ float fatBell(float value, float center, float width) {
 float shapeVertical = clamp((position.y - minY) / height, 0.0, 1.0);
 float shapeLateral = abs(position.x - centerX) / halfWidth;
 float shapeArmZone = clamp((shapeLateral - 0.42) / 0.22, 0.0, 1.0);
-float shapeArm = shapeArmZone * smoothstep(0.48, 0.58, shapeVertical);
+// Blend the arm layer out through the forearm and wrist. It keeps the shell
+// attached to the arm while preventing a hard, floating cuff around the hand.
+float shapeArm = shapeArmZone * smoothstep(0.34, 0.58, shapeVertical);
 float shapeChest = fatBell(shapeVertical, 0.74, 0.09) * (1.0 - shapeArmZone * 0.90);
 float shapeWaist = fatBell(shapeVertical, 0.56, 0.10) * (1.0 - shapeArmZone);
 float shapeHip = fatBell(shapeVertical, 0.43, ${hipBandWidth}) * (1.0 - shapeArmZone);
@@ -171,7 +173,9 @@ transformed.z += shapeZDirection * (shapeWeightZ + shapeMeasurementZ) * shapeZSu
 float vertical = clamp((position.y - minY) / height, 0.0, 1.0);
 float lateral = abs(position.x - centerX) / halfWidth;
 float armZone = smoothstep(0.42, 0.64, lateral);
-float arm = armZone * smoothstep(0.48, 0.58, vertical);
+// Match the body-shape arm envelope above, so the fat surface cannot end in
+// a visibly detached ring at either wrist.
+float arm = armZone * smoothstep(0.34, 0.58, vertical);
 float chest = fatBell(vertical, 0.74, 0.10) * (1.0 - armZone * 0.90);
 float waist = fatBell(vertical, 0.56, 0.11) * (1.0 - armZone);
 float hip = fatBell(vertical, 0.43, ${profile.modelType === "female" ? "0.12" : "0.16"}) * (1.0 - armZone);
@@ -197,7 +201,7 @@ transformed += normalize(objectNormal) * fatShellDepth * clamp(distribution, 0.0
       "#include <color_fragment>\ndiffuseColor.a *= vFatMask;",
     );
   };
-  material.customProgramCacheKey = () => useShapeShader ? "regional-fat-overlay-shape-v5" : "regional-fat-overlay-v4";
+  material.customProgramCacheKey = () => useShapeShader ? "regional-fat-overlay-shape-v6" : "regional-fat-overlay-v5";
   material.userData.fatUniforms = uniforms;
   return material;
 }
