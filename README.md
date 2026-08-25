@@ -2,7 +2,7 @@
 
 An interactive 3D body-shape visualization tool driven by height, weight, and optional circumference adjustments. No photo upload is required: users can explore an estimated silhouette in the browser from multiple angles and compare their current and target profiles.
 
-**Live demo:** [body-simulator.com](https://body-simulator.com/)
+**Live demo:** [body shape visualizer](https://body-simulator.com/)
 
 > This project provides a parametric visual reference only. It is not a substitute for medical diagnosis, body-composition testing, or professional health advice.
 
@@ -105,7 +105,7 @@ To use custom models, follow the dimensions, skeleton, and Morph Target conventi
 
 一个基于身高、体重与局部围度的交互式 3D 体型可视化工具。用户无需上传照片，即可在浏览器中实时查看不同参数下的身体轮廓，并从多个视角观察当前体型或目标体型。
 
-**在线体验：** [body-simulator.com](https://body-simulator.com/)
+**在线体验：** [body shape visualizer](https://body-simulator.com/)
 
 > 本项目提供的是参数化视觉参考，不能替代医学诊断、人体成分检测或专业健康建议。
 

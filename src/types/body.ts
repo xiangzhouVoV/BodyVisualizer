@@ -3,6 +3,7 @@ export type ModelType = "female" | "male";
 export type ViewMode = "front" | "left" | "right" | "back" | "free";
 
 export type ProfileSlot = "current" | "target";
+export type UnitSystem = "metric" | "imperial";
 
 /** Optional visual offsets layered on top of height/weight-derived proportions. */
 export interface CircumferenceAdjustments {

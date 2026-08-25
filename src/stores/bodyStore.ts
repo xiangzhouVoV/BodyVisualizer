@@ -2,10 +2,11 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 import { DEFAULT_PROFILE } from "../lib/bodyMath";
-import { DEFAULT_CIRCUMFERENCE_ADJUSTMENTS, type CircumferenceAdjustments, type ModelType, type ProfileSlot, type ViewMode } from "../types/body";
+import { DEFAULT_CIRCUMFERENCE_ADJUSTMENTS, type CircumferenceAdjustments, type ModelType, type ProfileSlot, type UnitSystem, type ViewMode } from "../types/body";
 
 interface BodyStore {
   modelType: ModelType;
+  unitSystem: UnitSystem;
   activeProfile: ProfileSlot;
   heightCm: number;
   weightKg: number;
@@ -16,6 +17,7 @@ interface BodyStore {
   targetMeasurements: CircumferenceAdjustments;
   showFatLayer: boolean;
   setModelType: (modelType: ModelType) => void;
+  setUnitSystem: (unitSystem: UnitSystem) => void;
   setActiveProfile: (profile: ProfileSlot) => void;
   setHeightCm: (heightCm: number) => void;
   setWeightKg: (weightKg: number) => void;
@@ -30,6 +32,7 @@ export const useBodyStore = create<BodyStore>()(
   persist(
     (set) => ({
       modelType: "male",
+      unitSystem: "metric",
       activeProfile: "current",
       heightCm: DEFAULT_PROFILE.male.heightCm,
       weightKg: DEFAULT_PROFILE.male.weightKg,
@@ -40,6 +43,7 @@ export const useBodyStore = create<BodyStore>()(
       targetMeasurements: { ...DEFAULT_CIRCUMFERENCE_ADJUSTMENTS },
       showFatLayer: true,
       setModelType: (modelType) => set({ modelType }),
+      setUnitSystem: (unitSystem) => set({ unitSystem }),
       setActiveProfile: (activeProfile) => set({ activeProfile }),
       setHeightCm: (heightCm) => set((state) => state.activeProfile === "current" ? { heightCm } : { targetHeightCm: heightCm }),
       setWeightKg: (weightKg) => set((state) => state.activeProfile === "current" ? { weightKg } : { targetWeightKg: weightKg }),
@@ -56,6 +60,7 @@ export const useBodyStore = create<BodyStore>()(
       reset: () =>
         set({
           modelType: "male",
+          unitSystem: "metric",
           activeProfile: "current",
           heightCm: DEFAULT_PROFILE.male.heightCm,
           weightKg: DEFAULT_PROFILE.male.weightKg,
@@ -69,15 +74,16 @@ export const useBodyStore = create<BodyStore>()(
     }),
     {
       name: "body-visualizer-profile",
-      // Version 3 makes the fat layer the default visible comparison layer,
-      // including for profiles saved by earlier builds.
-      version: 3,
+      // Version 4 persists the preferred display system while keeping stored
+      // body data in centimetres and kilograms for the renderer.
+      version: 4,
       migrate: (persistedState) => {
         const state = persistedState as Partial<BodyStore>;
         return {
           ...state,
           measurements: { ...DEFAULT_CIRCUMFERENCE_ADJUSTMENTS, ...state.measurements },
           targetMeasurements: { ...DEFAULT_CIRCUMFERENCE_ADJUSTMENTS, ...state.targetMeasurements },
+          unitSystem: state.unitSystem === "imperial" ? "imperial" : "metric",
           showFatLayer: true,
         } as BodyStore;
       },
