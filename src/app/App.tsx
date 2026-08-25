@@ -68,7 +68,10 @@ export function App() {
         <aside className="side-panel"><BodyControls /></aside>
       </div>
 
-      <footer className="disclaimer"><span>ⓘ</span> Results are based on a parametric 3D body model for visual reference only. They do not represent real body measurements, medical diagnosis, or health advice.</footer>
+      <footer className="disclaimer">
+        <span>ⓘ</span> Results are based on a parametric 3D body model for visual reference only. They do not represent real body measurements, medical diagnosis, or health advice.
+        <a href="https://github.com/xiangzhouVoV/GTS-BodyShapeVisualizer-" target="_blank" rel="noreferrer">Open Source on GitHub</a>
+      </footer>
     </main>
   );
 }
