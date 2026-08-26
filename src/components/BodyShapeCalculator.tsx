@@ -29,6 +29,22 @@ const shapeHowToTell = [
   "Your shoulder, waist, and hip measurements are relatively close, with less than roughly a 25% waist reduction from the hips.",
 ] as const;
 
+const maleShapeCards = [
+  ["Trapezoid", "/images/male-trapezoid.png", "Shoulders are slightly broader than the waist and hips, creating a naturally balanced upper body."],
+  ["Inverted Triangle", "/images/male-inverted-triangle.png", "The shoulders and chest are noticeably wider than the waist and hips."],
+  ["Rectangle", "/images/male-rectangle.png", "Shoulders, waist, and hips stay relatively close in width, creating a straighter silhouette."],
+  ["Oval", "/images/male-oval.png", "The waist and midsection carry more visible width than the shoulders and hips."],
+  ["Triangle", "/images/male-triangle.png", "The waist and hips are wider than the shoulders, creating a broader lower silhouette."],
+] as const;
+
+const maleShapeHowToTell = [
+  "Your shoulders are moderately wider than your waist, while your hips stay close to your waist measurement.",
+  "Your shoulders or chest are substantially wider than both your waist and hips.",
+  "Your shoulder, waist, and hip measurements sit fairly close together without a strong taper.",
+  "Your waist is the widest or close to the widest measurement, creating more fullness through the middle.",
+  "Your waist or hips are noticeably wider than your shoulders, creating a broader lower body.",
+] as const;
+
 const questions = [
   ["What is the difference between body shape and BMI?", "BMI is a single number based on height and weight, while body shape describes your actual proportions. Two people can have the same BMI but completely different body shapes."],
   ["How accurate is the body shape calculator?", "It uses standard shoulder-to-hip and waist-to-hip ratios to classify your shape. For the best result, measure carefully with a soft tape measure."],
@@ -183,7 +199,8 @@ export function BodyShapeCalculator() {
         <p className="calculator-hero-note">Your body shape is determined by the ratio of your shoulders, waist, and hips. Enter your measurements above and our 3D engine will render your body type instantly — no signup, no email required.</p>
       </section>
 
-      <section className="calculator-section" aria-labelledby="five-body-shapes"><span className="section-kicker">BODY TYPE GUIDE</span><h2 id="five-body-shapes">The 5 Body Shapes</h2><div className="calculator-shape-grid">{shapeCards.map(([name, image, description], index) => <article key={name}><img className="shape-thumbnail" src={image} alt={`${name} body shape illustration`} loading="lazy" /><h3>{name}</h3><p>{description}</p><p className="shape-how-to"><strong>How to tell:</strong> {shapeHowToTell[index]}</p></article>)}</div></section>
+      <section className="calculator-section" aria-labelledby="five-body-shapes"><span className="section-kicker">BODY TYPE GUIDE</span><h2 id="five-body-shapes">Female Body Shapes</h2><div className="calculator-shape-grid">{shapeCards.map(([name, image, description], index) => <article key={name}><img className="shape-thumbnail" src={image} alt={`${name} body shape illustration`} loading="lazy" /><h3>{name}</h3><p>{description}</p><p className="shape-how-to"><strong>How to tell:</strong> {shapeHowToTell[index]}</p></article>)}</div></section>
+      <section className="calculator-section" aria-labelledby="five-male-body-shapes"><span className="section-kicker">MALE BODY TYPE GUIDE</span><h2 id="five-male-body-shapes">Male Body Shapes</h2><div className="calculator-shape-grid">{maleShapeCards.map(([name, image, description], index) => <article key={name}><img className="shape-thumbnail" src={image} alt={`${name} male body shape illustration`} loading="lazy" /><h3>{name}</h3><p>{description}</p><p className="shape-how-to"><strong>How to tell:</strong> {maleShapeHowToTell[index]}</p></article>)}</div></section>
 
       <div className="calculator-information-grid">
         <section className="calculator-section" aria-labelledby="measurement-title"><span className="section-kicker">MEASUREMENT GUIDE</span><h2 id="measurement-title">How to Measure for Accurate Results</h2><ol className="calculator-steps"><li><strong>Shoulders</strong> — measure around the widest point of your shoulders, keeping the tape level.</li><li><strong>Bust</strong> — measure around the fullest part of your chest.</li><li><strong>Waist</strong> — measure at the narrowest point, usually just above the belly button.</li><li><strong>Hips</strong> — measure around the widest part of your hips and buttocks.</li></ol><p className="calculator-tip"><strong>Tip:</strong> keep the tape measure snug but not tight, and stand naturally. Once measured, enter the numbers above to see your 3D body shape.</p></section>
