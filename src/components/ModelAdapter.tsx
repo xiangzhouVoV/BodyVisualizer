@@ -196,9 +196,10 @@ function RiggedGlbModel({ source, profile, showFatLayer }: { source: THREE.Objec
           const next = material.clone() as THREE.MeshStandardMaterial;
           // Preserve authored textured models, while neutralising untextured
           // anatomy assets so the yellow fat layer remains visually distinct.
-          // Use a deeper neutral body tone so the silhouette remains readable
-          // against the light preview canvas and the yellow fat overlay.
-          if (!next.map) next.color.set("#625d56");
+          // Match the warm, natural skin tone used by the body-shape guide
+          // illustrations while retaining authored textures when an asset has
+          // them. The warmer surface still reads clearly beneath the fat layer.
+          if (!next.map) next.color.set("#c78363");
           next.roughness = Math.max(next.roughness, 0.62);
           next.metalness = 0;
           return next;
