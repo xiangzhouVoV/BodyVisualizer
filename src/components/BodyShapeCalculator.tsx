@@ -21,6 +21,13 @@ const shapeCards = [
   ["Apple / Round", "/images/appleOrRound.png", "Apple, or round, shapes tend to carry more visible proportion through the waist and midsection. Shoulders and hips can be similar in size while the waist is less sharply defined. This category does not describe body-fat percentage or health."],
   ["Rectangle / Straight", "/images/Rectangle.png", "Rectangle, or straight, shapes have shoulders, waist, and hips that stay relatively close in proportion. The silhouette may show fewer dramatic curves through the waist. Posture, muscle, clothing, and natural variation can still change its appearance."],
 ] as const;
+const shapeHowToTell = [
+  "Compare your shoulder and hip measurements, then check whether your waist is at least about 25% smaller than your hips.",
+  "Your hip measurement is noticeably larger than your shoulder or bust measurement, usually by around 5% or more.",
+  "Your shoulder measurement is noticeably larger than your hip measurement, usually by around 5% or more.",
+  "Your waist is close to your hip and upper-body measurements, so the middle is not sharply narrower than the rest.",
+  "Your shoulder, waist, and hip measurements are relatively close, with less than roughly a 25% waist reduction from the hips.",
+] as const;
 
 const questions = [
   ["What is the difference between body shape and BMI?", "BMI is a single number based on height and weight, while body shape describes your actual proportions. Two people can have the same BMI but completely different body shapes."],
@@ -28,6 +35,9 @@ const questions = [
   ["Can I use this without creating an account?", "Yes. It is free to use, with no signup or email required."],
   ["What are the 5 main body shapes?", "Hourglass, pear (triangle), inverted triangle, apple (round), and rectangle (straight)."],
   ["How can I see my body shape in 3D?", "Enter your measurements and the 3D engine renders your body type instantly. You can then explore the full 3D body simulator for more detail."],
+  ["What is the difference between body shape and body type?", "Body shape usually describes your visible shoulder, waist, and hip proportions, while body type is a broader phrase that may also include frame, muscle, or styling context. In this calculator, the terms refer to the same five proportion-based categories."],
+  ["Do men have the same body shapes?", "Men can also have hourglass, pear, inverted triangle, apple, or rectangle-like proportions. The same category names can be used, although typical shoulder, chest, waist, and hip proportions may differ."],
+  ["What waist-to-hip ratio indicates each body shape?", "A waist-to-hip ratio below about 0.75 often suggests a defined-waist hourglass pattern. A relatively larger hip measurement can suggest pear, a larger shoulder measurement can suggest inverted triangle, and a higher waist ratio can suggest apple. These are visual guidelines, not strict medical cutoffs."],
 ] as const;
 
 function numberFromSearch(value: string | null, fallback: number, min: number, max: number) {
@@ -173,7 +183,7 @@ export function BodyShapeCalculator() {
         <p className="calculator-hero-note">Your body shape is determined by the ratio of your shoulders, waist, and hips. Enter your measurements above and our 3D engine will render your body type instantly — no signup, no email required.</p>
       </section>
 
-      <section className="calculator-section" aria-labelledby="five-body-shapes"><span className="section-kicker">BODY TYPE GUIDE</span><h2 id="five-body-shapes">The 5 Female Body Shapes</h2><div className="calculator-shape-grid">{shapeCards.map(([name, image, description]) => <article key={name}><img className="shape-thumbnail" src={image} alt={`${name} body shape illustration`} loading="lazy" /><h3>{name}</h3><p>{description}</p></article>)}</div></section>
+      <section className="calculator-section" aria-labelledby="five-body-shapes"><span className="section-kicker">BODY TYPE GUIDE</span><h2 id="five-body-shapes">The 5 Body Shapes</h2><div className="calculator-shape-grid">{shapeCards.map(([name, image, description], index) => <article key={name}><img className="shape-thumbnail" src={image} alt={`${name} body shape illustration`} loading="lazy" /><h3>{name}</h3><p>{description}</p><p className="shape-how-to"><strong>How to tell:</strong> {shapeHowToTell[index]}</p></article>)}</div></section>
 
       <div className="calculator-information-grid">
         <section className="calculator-section" aria-labelledby="measurement-title"><span className="section-kicker">MEASUREMENT GUIDE</span><h2 id="measurement-title">How to Measure for Accurate Results</h2><ol className="calculator-steps"><li><strong>Shoulders</strong> — measure around the widest point of your shoulders, keeping the tape level.</li><li><strong>Bust</strong> — measure around the fullest part of your chest.</li><li><strong>Waist</strong> — measure at the narrowest point, usually just above the belly button.</li><li><strong>Hips</strong> — measure around the widest part of your hips and buttocks.</li></ol><p className="calculator-tip"><strong>Tip:</strong> keep the tape measure snug but not tight, and stand naturally. Once measured, enter the numbers above to see your 3D body shape.</p></section>

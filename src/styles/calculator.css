@@ -49,7 +49,8 @@
 .shape-thumbnail { display: block; width: 100%; aspect-ratio: 3 / 4; margin: 0 0 13px; border-radius: 8px; background: #eeeae5; object-fit: cover; object-position: top; }
 .calculator-shape-grid h3 { margin: 0; color: #504942; font-size: 12px; letter-spacing: -.02em; }
 .calculator-shape-grid p { margin: 7px 0 0; color: #6b645d; font-size: 12px; line-height: 1.65; }
-.calculator-information-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; }
+.calculator-shape-grid .shape-how-to { margin-top: 11px; padding-top: 10px; border-top: 1px solid rgba(54, 48, 42, .10); color: #847b73; font-size: 11px; line-height: 1.6; }.calculator-shape-grid .shape-how-to strong { color: #a7624e; }
+.calculator-information-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
 .calculator-steps { margin: 0; padding: 0; list-style: none; counter-reset: measurement; }
 .calculator-steps li { position: relative; min-height: 48px; padding: 11px 0 11px 40px; border-top: 1px solid rgba(54, 48, 42, .10); color: #6b645d; font-size: 14px; line-height: 1.85; }
 .calculator-steps li::before { position: absolute; top: 11px; left: 0; display: grid; width: 23px; height: 23px; place-items: center; border-radius: 50%; background: #f3e5df; color: #a7624e; content: counter(measurement); counter-increment: measurement; font: 500 10px 'DM Mono', monospace; }
