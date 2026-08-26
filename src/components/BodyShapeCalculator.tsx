@@ -15,11 +15,11 @@ const CM_PER_INCH = 2.54;
 type Unit = "metric" | "imperial";
 
 const shapeCards = [
-  ["Hourglass", "/images/Hourglass.png", "Hourglass shapes have shoulders and hips that are roughly equal in width, with a clearly defined waist. A waist-to-hip ratio is often below 0.75. This balanced proportion is a descriptive visual category, not a rule every person must fit."],
-  ["Pear / Triangle", "/images/PearOrtriangle.png", "Pear, or triangle, shapes have hips that are wider than the shoulders and upper body. The waist may be defined while visual weight is carried lower on the body. Measurements show this relationship without assigning a health judgement."],
-  ["Inverted Triangle", "/images/InvertedTriangle.png", "Inverted triangle shapes have shoulders that are visibly broader than the hips. The upper body can read as stronger or wider while the waist and lower body appear comparatively narrow. Classification uses proportion, not BMI or weight."],
-  ["Apple / Round", "/images/appleOrRound.png", "Apple, or round, shapes tend to carry more visible proportion through the waist and midsection. Shoulders and hips can be similar in size while the waist is less sharply defined. This category does not describe body-fat percentage or health."],
-  ["Rectangle / Straight", "/images/Rectangle.png", "Rectangle, or straight, shapes have shoulders, waist, and hips that stay relatively close in proportion. The silhouette may show fewer dramatic curves through the waist. Posture, muscle, clothing, and natural variation can still change its appearance."],
+  ["Hourglass", "/images/Hourglass.png", 1149, 1369, "Hourglass shapes have shoulders and hips that are roughly equal in width, with a clearly defined waist. A waist-to-hip ratio is often below 0.75. This balanced proportion is a descriptive visual category, not a rule every person must fit."],
+  ["Pear / Triangle", "/images/PearOrtriangle.png", 1149, 1369, "Pear, or triangle, shapes have hips that are wider than the shoulders and upper body. The waist may be defined while visual weight is carried lower on the body. Measurements show this relationship without assigning a health judgement."],
+  ["Inverted Triangle", "/images/InvertedTriangle.png", 1148, 1370, "Inverted triangle shapes have shoulders that are visibly broader than the hips. The upper body can read as stronger or wider while the waist and lower body appear comparatively narrow. Classification uses proportion, not BMI or weight."],
+  ["Apple / Round", "/images/appleOrRound.png", 1148, 1370, "Apple, or round, shapes tend to carry more visible proportion through the waist and midsection. Shoulders and hips can be similar in size while the waist is less sharply defined. This category does not describe body-fat percentage or health."],
+  ["Rectangle / Straight", "/images/Rectangle.png", 1148, 1370, "Rectangle, or straight, shapes have shoulders, waist, and hips that stay relatively close in proportion. The silhouette may show fewer dramatic curves through the waist. Posture, muscle, clothing, and natural variation can still change its appearance."],
 ] as const;
 const shapeHowToTell = [
   "Compare your shoulder and hip measurements, then check whether your waist is at least about 25% smaller than your hips.",
@@ -30,11 +30,11 @@ const shapeHowToTell = [
 ] as const;
 
 const maleShapeCards = [
-  ["Trapezoid", "/images/male-trapezoid.png", "Shoulders are slightly broader than the waist and hips, creating a naturally balanced upper body."],
-  ["Inverted Triangle", "/images/male-inverted-triangle.png", "The shoulders and chest are noticeably wider than the waist and hips."],
-  ["Rectangle", "/images/male-rectangle.png", "Shoulders, waist, and hips stay relatively close in width, creating a straighter silhouette."],
-  ["Oval", "/images/male-oval.png", "The waist and midsection carry more visible width than the shoulders and hips."],
-  ["Triangle", "/images/male-triangle.png", "The waist and hips are wider than the shoulders, creating a broader lower silhouette."],
+  ["Trapezoid", "/images/male-trapezoid.png", 1365, 1152, "Shoulders are slightly broader than the waist and hips, creating a naturally balanced upper body."],
+  ["Inverted Triangle", "/images/male-inverted-triangle.png", 1199, 1312, "The shoulders and chest are noticeably wider than the waist and hips."],
+  ["Rectangle", "/images/male-rectangle.png", 1199, 1312, "Shoulders, waist, and hips stay relatively close in width, creating a straighter silhouette."],
+  ["Oval", "/images/male-oval.png", 1199, 1312, "The waist and midsection carry more visible width than the shoulders and hips."],
+  ["Triangle", "/images/male-triangle.png", 1201, 1309, "The waist and hips are wider than the shoulders, creating a broader lower silhouette."],
 ] as const;
 
 const maleShapeHowToTell = [
@@ -199,8 +199,8 @@ export function BodyShapeCalculator() {
         <p className="calculator-hero-note">Your body shape is determined by the ratio of your shoulders, waist, and hips. Enter your measurements above and our 3D engine will render your body type instantly — no signup, no email required.</p>
       </section>
 
-      <section className="calculator-section" aria-labelledby="five-body-shapes"><span className="section-kicker">BODY TYPE GUIDE</span><h2 id="five-body-shapes">Female Body Shapes</h2><div className="calculator-shape-grid">{shapeCards.map(([name, image, description], index) => <article key={name}><img className="shape-thumbnail" src={image} alt={`${name} body shape illustration`} loading="lazy" /><h3>{name}</h3><p>{description}</p><p className="shape-how-to"><strong>How to tell:</strong> {shapeHowToTell[index]}</p></article>)}</div></section>
-      <section className="calculator-section" aria-labelledby="five-male-body-shapes"><span className="section-kicker">MALE BODY TYPE GUIDE</span><h2 id="five-male-body-shapes">Male Body Shapes</h2><div className="calculator-shape-grid">{maleShapeCards.map(([name, image, description], index) => <article key={name}><img className="shape-thumbnail" src={image} alt={`${name} male body shape illustration`} loading="lazy" /><h3>{name}</h3><p>{description}</p><p className="shape-how-to"><strong>How to tell:</strong> {maleShapeHowToTell[index]}</p></article>)}</div></section>
+      <section className="calculator-section" aria-labelledby="five-body-shapes"><span className="section-kicker">BODY TYPE GUIDE</span><h2 id="five-body-shapes">Female Body Shapes</h2><div className="calculator-shape-grid">{shapeCards.map(([name, image, width, height, description], index) => <article key={name}><img className="shape-thumbnail" src={image} alt={`${name} body shape illustration`} width={width} height={height} loading="lazy" /><h3>{name}</h3><p>{description}</p><p className="shape-how-to"><strong>How to tell:</strong> {shapeHowToTell[index]}</p></article>)}</div></section>
+      <section className="calculator-section" aria-labelledby="five-male-body-shapes"><span className="section-kicker">MALE BODY TYPE GUIDE</span><h2 id="five-male-body-shapes">Male Body Shapes</h2><div className="calculator-shape-grid">{maleShapeCards.map(([name, image, width, height, description], index) => <article key={name}><img className="shape-thumbnail" src={image} alt={`${name} male body shape illustration`} width={width} height={height} loading="lazy" /><h3>{name}</h3><p>{description}</p><p className="shape-how-to"><strong>How to tell:</strong> {maleShapeHowToTell[index]}</p></article>)}</div></section>
 
       <div className="calculator-information-grid">
         <section className="calculator-section" aria-labelledby="measurement-title"><span className="section-kicker">MEASUREMENT GUIDE</span><h2 id="measurement-title">How to Measure for Accurate Results</h2><ol className="calculator-steps"><li><strong>Shoulders</strong> — measure around the widest point of your shoulders, keeping the tape level.</li><li><strong>Bust</strong> — measure around the fullest part of your chest.</li><li><strong>Waist</strong> — measure at the narrowest point, usually just above the belly button.</li><li><strong>Hips</strong> — measure around the widest part of your hips and buttocks.</li></ol><p className="calculator-tip"><strong>Tip:</strong> keep the tape measure snug but not tight, and stand naturally. Once measured, enter the numbers above to see your 3D body shape.</p></section>

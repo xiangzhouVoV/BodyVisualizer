@@ -199,7 +199,7 @@ function RiggedGlbModel({ source, profile, showFatLayer }: { source: THREE.Objec
           // Match the warm, natural skin tone used by the body-shape guide
           // illustrations while retaining authored textures when an asset has
           // them. The warmer surface still reads clearly beneath the fat layer.
-          if (!next.map) next.color.set("#c78363");
+          if (!next.map) next.color.set("#a96850");
           next.roughness = Math.max(next.roughness, 0.62);
           next.metalness = 0;
           return next;
