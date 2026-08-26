@@ -2,3 +2,4 @@ node_modules/
 dist/
 .DS_Store
 *.local
+body-shape-calculator需求文档.md

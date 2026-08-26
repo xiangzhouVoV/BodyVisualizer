@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useLayoutEffect, useState } from "react";
 
 import { BodyControls } from "../components/BodyControls";
 import { ViewControls } from "../components/ViewControls";
@@ -21,6 +21,13 @@ export function App() {
   const viewMode = useBodyStore((state) => state.viewMode);
   const setViewMode = useBodyStore((state) => state.setViewMode);
   const reset = useBodyStore((state) => state.reset);
+
+  useLayoutEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("reset") !== "1") return;
+    reset();
+    window.history.replaceState(null, "", window.location.pathname);
+  }, [reset]);
   const previewProfile = activeProfile === "current"
     ? { heightCm, weightKg, measurements }
     : { heightCm: targetHeightCm, weightKg: targetWeightKg, measurements: targetMeasurements };
@@ -39,6 +46,15 @@ export function App() {
         </div>
       </header>
 
+      <div className="app-layout">
+        <aside className="tool-sidebar">
+          <span className="tool-sidebar-label">EXPLORE</span>
+          <nav aria-label="Tools">
+            <a className="current" href="/"><span aria-hidden="true">◎</span>3D Body Simulator</a>
+            <a href="/body-shape-calculator/"><span aria-hidden="true">◇</span>Body Shape Calculator</a>
+          </nav>
+        </aside>
+        <div className="app-content">
       <div className="workspace">
         <section className="stage-card" aria-label="3D body shape preview">
           <div className="stage-heading">
@@ -72,6 +88,8 @@ export function App() {
         <span>ⓘ</span> Results are based on a parametric 3D body model for visual reference only. They do not represent real body measurements, medical diagnosis, or health advice.
         <a href="https://github.com/xiangzhouVoV/GTS-BodyShapeVisualizer-" target="_blank" rel="noreferrer">Open Source on GitHub</a>
       </footer>
+        </div>
+      </div>
     </main>
   );
 }
