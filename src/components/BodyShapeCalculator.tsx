@@ -187,13 +187,12 @@ export function BodyShapeCalculator() {
         </div>
 
         <div className="calculator-preview" aria-label="Interactive 3D body shape preview">
-          <div className="calculator-result"><span>YOUR BODY SHAPE</span><strong>{resultCopy.label}</strong><p>{resultCopy.description}</p></div>
+          <div className="calculator-result"><span>YOUR BODY SHAPE</span><strong>{resultCopy.label}</strong></div>
           <span className="calculator-live"><i />LIVE 3D PREVIEW</span>
           <Suspense fallback={<div className="calculator-canvas-loading">Preparing 3D preview…</div>}>
             <BodyCanvas profile={profile} showFatLayer={false} viewMode={viewMode} onViewModeChange={setViewMode} onLoadingChange={setModelLoading} />
           </Suspense>
           {modelLoading && <div className="calculator-model-loading">Loading model…</div>}
-          <div className="calculator-measurement-markers" aria-hidden="true"><span className="marker-shoulder">SHOULDERS</span><span className="marker-bust">BUST</span><span className="marker-waist">WAIST</span><span className="marker-hip">HIPS</span></div>
           <div className="calculator-view-buttons" aria-label="View controls">{(["front", "left", "right", "back"] as const).map((view) => <button key={view} type="button" className={viewMode === view ? "active" : ""} onClick={() => setViewMode(view)}>{view}</button>)}</div>
         </div>
         <p className="calculator-hero-note">Your body shape is determined by the ratio of your shoulders, waist, and hips. Enter your measurements above and our 3D engine will render your body type instantly — no signup, no email required.</p>

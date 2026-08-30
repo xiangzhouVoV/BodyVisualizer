@@ -68,6 +68,7 @@ function createRegionalFatMaterial(bounds: THREE.Box3, opacity: number, profile:
     halfDepth: { value: halfDepth },
     bmiDelta: { value: bmiDelta },
     bodyFatDelta: { value: bodyFatDelta },
+    shoulderAdjustCm: { value: profile.measurements.shoulderAdjustCm },
     bustAdjustCm: { value: profile.measurements.bustAdjustCm },
     waistAdjustCm: { value: profile.measurements.waistAdjustCm },
     hipAdjustCm: { value: profile.measurements.hipAdjustCm },
@@ -123,6 +124,7 @@ uniform float fatShellDepth;
 ${useShapeShader ? `uniform float halfDepth;
 uniform float bmiDelta;
 uniform float bodyFatDelta;
+uniform float shoulderAdjustCm;
 uniform float bustAdjustCm;
 uniform float waistAdjustCm;
 uniform float hipAdjustCm;
@@ -141,6 +143,9 @@ float shapeArmZone = clamp((shapeLateral - 0.42) / 0.22, 0.0, 1.0);
 // Blend the arm layer out through the forearm and wrist. It keeps the shell
 // attached to the arm while preventing a hard, floating cuff around the hand.
 float shapeArm = shapeArmZone * smoothstep(0.34, 0.58, shapeVertical);
+float shapeShoulderVertical = fatBell(shapeVertical, 0.78, 0.048);
+float shapeShoulderLateral = smoothstep(0.18, 0.46, shapeLateral) * (1.0 - smoothstep(0.56, 0.66, shapeLateral));
+float shapeShoulder = shapeShoulderVertical * shapeShoulderLateral;
 float shapeChest = fatBell(shapeVertical, 0.74, 0.09) * (1.0 - shapeArmZone * 0.90);
 float shapeWaist = fatBell(shapeVertical, 0.56, 0.10) * (1.0 - shapeArmZone);
 float shapeHip = fatBell(shapeVertical, 0.43, ${hipBandWidth}) * (1.0 - shapeArmZone);
@@ -164,7 +169,8 @@ float shapeXSurface = clamp(shapeLateral, 0.0, 1.0);
 float shapeZSurface = clamp(abs(position.z - centerZ) / halfDepth, 0.0, 1.0);
 float shapeFrontDepth = clamp((position.z - centerZ) / halfDepth, 0.0, 1.0);
 float shapeBustProjection = shapeChest * bustAdjustCm * 0.010 * (0.12 + shapeFrontDepth * 0.88);
-transformed.x += shapeXDirection * (shapeWeightX + shapeMeasurementX) * shapeXSurface;
+float shapeShoulderOffset = shapeShoulder * shoulderAdjustCm * 0.0036;
+transformed.x += shapeXDirection * ((shapeWeightX + shapeMeasurementX) * shapeXSurface + shapeShoulderOffset);
 transformed.z += shapeZDirection * (shapeWeightZ + shapeMeasurementZ) * shapeZSurface + shapeBustProjection;`
       : "";
     shader.vertexShader = shader.vertexShader.replace(
@@ -201,7 +207,7 @@ transformed += normalize(objectNormal) * fatShellDepth * clamp(distribution, 0.0
       "#include <color_fragment>\ndiffuseColor.a *= vFatMask;",
     );
   };
-  material.customProgramCacheKey = () => useShapeShader ? "regional-fat-overlay-shape-v6" : "regional-fat-overlay-v5";
+  material.customProgramCacheKey = () => useShapeShader ? "regional-fat-overlay-shape-v7" : "regional-fat-overlay-v5";
   material.userData.fatUniforms = uniforms;
   return material;
 }
@@ -310,6 +316,7 @@ export function FatTrendOverlay({
         uniforms.bmiDelta.value = currentBmi - baseBmi;
         uniforms.bodyFatDelta.value = fat - baseFat;
         uniforms.fatShellDepth.value = Math.max(0, fat - baseFat) * (profile.modelType === "female" ? 0.045 : 0.022);
+        uniforms.shoulderAdjustCm.value = profile.measurements.shoulderAdjustCm;
         uniforms.bustAdjustCm.value = profile.measurements.bustAdjustCm;
         uniforms.waistAdjustCm.value = profile.measurements.waistAdjustCm;
         uniforms.hipAdjustCm.value = profile.measurements.hipAdjustCm;

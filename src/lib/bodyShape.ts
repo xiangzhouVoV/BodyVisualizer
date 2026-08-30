@@ -65,6 +65,7 @@ export function calculateBodyDimensions({ modelType, heightCm, weightKg, measure
   const calfLength = 0.38 * (1 + (heightRatio - 1) * 0.25);
   const thighLength = 0.43 * (1 + (heightRatio - 1) * 0.4);
   const bustAdjustment = measurements.bustAdjustCm * 0.005;
+  const shoulderAdjustment = measurements.shoulderAdjustCm * 0.005;
   const waistAdjustment = measurements.waistAdjustCm * 0.005;
   const hipAdjustment = measurements.hipAdjustCm * 0.005;
   const armAdjustment = measurements.armAdjustCm * 0.005;
@@ -81,7 +82,7 @@ export function calculateBodyDimensions({ modelType, heightCm, weightKg, measure
     legRadius: 0.1 + morphs.thigh * 0.055 + legAdjustment * 0.5,
     legTop: 0.08 + calfLength + thighLength,
     pelvisWidth: (isFemale ? 0.42 : 0.36) + morphs.hip * 0.15 + hipAdjustment,
-    shoulderWidth: (isFemale ? 0.5 : 0.62) + fat * 0.08,
+    shoulderWidth: (isFemale ? 0.5 : 0.62) + fat * 0.08 + shoulderAdjustment,
     thighLength,
     torsoLength: 0.49 * (1 + (heightRatio - 1) * 0.25),
     waistDepth: 0.13 + morphs.belly * 0.1 + waistAdjustment * 0.72,

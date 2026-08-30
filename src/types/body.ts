@@ -7,6 +7,7 @@ export type UnitSystem = "metric" | "imperial";
 
 /** Optional visual offsets layered on top of height/weight-derived proportions. */
 export interface CircumferenceAdjustments {
+  shoulderAdjustCm: number;
   bustAdjustCm: number;
   waistAdjustCm: number;
   hipAdjustCm: number;
@@ -15,6 +16,7 @@ export interface CircumferenceAdjustments {
 }
 
 export const DEFAULT_CIRCUMFERENCE_ADJUSTMENTS: CircumferenceAdjustments = {
+  shoulderAdjustCm: 0,
   bustAdjustCm: 0,
   waistAdjustCm: 0,
   hipAdjustCm: 0,

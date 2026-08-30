@@ -68,10 +68,13 @@ export function createCalculatorBodyProfile(
     weightKg: DEFAULT_PROFILE[modelType].weightKg,
     viewMode,
     measurements: {
+      // Shoulder/upper-body girth has its own clavicle/deltoid deformation.
+      // It must not be mapped to the Arm control, which changes arm volume.
+      shoulderAdjustCm: clamp(shoulderDelta, -15, 15),
       bustAdjustCm: clamp(measurements.bustCm - base.bustCm, -15, 15),
       waistAdjustCm: clamp(measurements.waistCm - base.waistCm, -15, 15),
       hipAdjustCm: clamp(measurements.hipCm - base.hipCm, -15, 15),
-      armAdjustCm: clamp(shoulderDelta * 0.35, -10, 10),
+      armAdjustCm: 0,
       legAdjustCm: clamp((measurements.hipCm - base.hipCm) * 0.35, -10, 10),
     },
   };

@@ -118,6 +118,7 @@ function getRegionalShapeUniforms(
     halfDepth: { value: Math.max((bounds.max.z - bounds.min.z) / 2, 0.001) },
     bmiDelta: { value: bmiDelta },
     bodyFatDelta: { value: bodyFatDelta },
+    shoulderAdjustCm: { value: profile.measurements.shoulderAdjustCm },
     bustAdjustCm: { value: profile.measurements.bustAdjustCm },
     waistAdjustCm: { value: profile.measurements.waistAdjustCm },
     hipAdjustCm: { value: profile.measurements.hipAdjustCm },
@@ -161,6 +162,7 @@ uniform float halfWidth;
 uniform float halfDepth;
 uniform float bmiDelta;
 uniform float bodyFatDelta;
+uniform float shoulderAdjustCm;
 uniform float bustAdjustCm;
 uniform float waistAdjustCm;
 uniform float hipAdjustCm;
@@ -184,6 +186,12 @@ float relativeY = clamp((position.y - minY) / height, 0.0, 1.0);
 float horizontalDistance = abs(position.x - centerX) / halfWidth;
 float armZone = clamp((horizontalDistance - 0.42) / 0.22, 0.0, 1.0);
 float arm = armZone * smoothstep(0.34, 0.58, relativeY);
+// Shoulder/upper-body girth affects only the clavicle and deltoid cap. The
+// lateral fade finishes before the upper-arm cylinder, so it cannot lengthen
+// or thin the arm when this input changes.
+float shoulderVertical = regionalBell(relativeY, 0.78, 0.048);
+float shoulderLateral = smoothstep(0.18, 0.46, horizontalDistance) * (1.0 - smoothstep(0.56, 0.66, horizontalDistance));
+float shoulder = shoulderVertical * shoulderLateral;
 float chest = regionalBell(relativeY, 0.74, 0.09) * (1.0 - armZone * 0.90);
 float waist = regionalBell(relativeY, 0.56, 0.10) * (1.0 - armZone);
 float hip = regionalBell(relativeY, 0.43, 0.11) * (1.0 - armZone);
@@ -203,11 +211,12 @@ float xSurface = clamp(horizontalDistance, 0.0, 1.0);
 float zSurface = clamp(abs(position.z - centerZ) / halfDepth, 0.0, 1.0);
 float frontDepth = clamp((position.z - centerZ) / halfDepth, 0.0, 1.0);
 float bustProjection = chest * bustAdjustCm * 0.010 * (0.12 + frontDepth * 0.88);
-transformed.x += xDirection * (weightX + measurementX) * xSurface;
+float shoulderOffset = shoulder * shoulderAdjustCm * 0.0036;
+transformed.x += xDirection * ((weightX + measurementX) * xSurface + shoulderOffset);
 transformed.z += zDirection * (weightZ + measurementZ) * zSurface + bustProjection;`,
         );
       };
-      material.customProgramCacheKey = () => "regional-static-shape-v1";
+      material.customProgramCacheKey = () => "regional-static-shape-v2";
       material.userData.regionalShapeUniforms = uniforms;
       material.needsUpdate = true;
     }
@@ -215,6 +224,7 @@ transformed.z += zDirection * (weightZ + measurementZ) * zSurface + bustProjecti
     Object.entries(uniforms).forEach(([name, uniform]) => {
       if (name === "bmiDelta") uniform.value = bmiDelta;
       else if (name === "bodyFatDelta") uniform.value = bodyFatDelta;
+      else if (name === "shoulderAdjustCm") uniform.value = profile.measurements.shoulderAdjustCm;
       else if (name === "bustAdjustCm") uniform.value = profile.measurements.bustAdjustCm;
       else if (name === "waistAdjustCm") uniform.value = profile.measurements.waistAdjustCm;
       else if (name === "hipAdjustCm") uniform.value = profile.measurements.hipAdjustCm;
@@ -245,7 +255,7 @@ function applyLocalStaticShape(
   const halfDepth = Math.max((max.z - min.z) / 2, 0.001);
   const source = base.positions;
   const target = position.array as Float32Array;
-  const { bustAdjustCm, waistAdjustCm, hipAdjustCm, armAdjustCm, legAdjustCm } = profile.measurements;
+  const { shoulderAdjustCm, bustAdjustCm, waistAdjustCm, hipAdjustCm, armAdjustCm, legAdjustCm } = profile.measurements;
   const regionalBias = getRegionalFatBias(profile.modelType);
   const weightShapeGain = profile.modelType === "female" ? 0.80 : 1.0;
 
@@ -260,6 +270,9 @@ function applyLocalStaticShape(
     // excludes wrists/fingers from both the body deformation and fat overlay.
     const armZone = Math.max(0, Math.min(1, (horizontalDistance - 0.42) / 0.22));
     const armMask = armZone * smoothstep(0.48, 0.58, relativeY);
+    const shoulderVertical = bell(relativeY, 0.78, 0.048);
+    const shoulderLateral = smoothstep(0.18, 0.46, horizontalDistance) * (1 - smoothstep(0.56, 0.66, horizontalDistance));
+    const shoulder = shoulderVertical * shoulderLateral;
     const chest = bell(relativeY, 0.74, 0.09) * (1 - armZone * 0.9);
     const waist = bell(relativeY, 0.56, 0.10) * (1 - armZone);
     const hip = bell(relativeY, 0.43, 0.11) * (1 - armZone);
@@ -308,8 +321,9 @@ function applyLocalStaticShape(
     // Positive bust adjustment adds volume to the front chest surface instead
     // of equally enlarging the back. Negative values pull that surface back.
     const bustProjection = chest * bustAdjustCm * 0.010 * (0.12 + frontDepth * 0.88);
+    const shoulderOffset = shoulder * shoulderAdjustCm * 0.0036;
 
-    target[index] = x + xDirection * (weightX + measurementX) * xSurface;
+    target[index] = x + xDirection * ((weightX + measurementX) * xSurface + shoulderOffset);
     target[index + 1] = y; // Weight and circumferences never alter height.
     target[index + 2] = z + zDirection * (weightZ + measurementZ) * zSurface + bustProjection;
   }
@@ -376,7 +390,7 @@ export function applyProfileToGlb(
     DEFAULT_PROFILE[profile.modelType].heightCm,
     DEFAULT_PROFILE[profile.modelType].weightKg,
   );
-  const { bustAdjustCm, waistAdjustCm, hipAdjustCm, armAdjustCm, legAdjustCm } = profile.measurements;
+  const { shoulderAdjustCm, bustAdjustCm, waistAdjustCm, hipAdjustCm, armAdjustCm, legAdjustCm } = profile.measurements;
   const heightFix = Math.min(1, Math.abs(profile.heightCm - DEFAULT_PROFILE[profile.modelType].heightCm) / 25);
   const morphs: Record<string, number> = {
     body_fat: weightMorphs.bodyFat,
@@ -414,6 +428,7 @@ export function applyProfileToGlb(
   // control directly (rather than diluting one slider across five controls),
   // so a single +15 cm adjustment remains clearly visible in this MVP fallback.
   const circumferenceWidthDelta =
+    shoulderAdjustCm * 0.0025 +
     bustAdjustCm * 0.0045 +
     waistAdjustCm * 0.006 +
     hipAdjustCm * 0.006 +
