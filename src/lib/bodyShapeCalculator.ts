@@ -61,21 +61,27 @@ export function createCalculatorBodyProfile(
 ): BodyProfile {
   const base = DEFAULT_BODY_SHAPE_MEASUREMENTS[modelType];
   const shoulderDelta = measurements.shoulderCm - base.shoulderCm;
+  const hipDelta = measurements.hipCm - base.hipCm;
+  // The UI spans a much larger range than the underlying mesh controls. Use
+  // a proportional visual delta so the Hip slider remains responsive beyond
+  // its initial 15 cm, while retaining a safe upper bound for the GLB.
+  const hipVisualDelta = clamp(hipDelta * 0.35, -16, 30);
 
   return {
     modelType,
     heightCm: clamp(measurements.heightCm, 140, 200),
     weightKg: DEFAULT_PROFILE[modelType].weightKg,
     viewMode,
+    shapeRenderMode: "calculator",
     measurements: {
       // Shoulder/upper-body girth has its own clavicle/deltoid deformation.
       // It must not be mapped to the Arm control, which changes arm volume.
       shoulderAdjustCm: clamp(shoulderDelta, -15, 15),
       bustAdjustCm: clamp(measurements.bustCm - base.bustCm, -15, 15),
       waistAdjustCm: clamp(measurements.waistCm - base.waistCm, -15, 15),
-      hipAdjustCm: clamp(measurements.hipCm - base.hipCm, -15, 15),
+      hipAdjustCm: hipVisualDelta,
       armAdjustCm: 0,
-      legAdjustCm: clamp((measurements.hipCm - base.hipCm) * 0.35, -10, 10),
+      legAdjustCm: clamp(hipVisualDelta * 0.22, -4.5, 7),
     },
   };
 }

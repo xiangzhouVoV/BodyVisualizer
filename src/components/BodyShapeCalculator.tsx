@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from "react";
 
 import {
   BODY_SHAPE_COPY,
@@ -81,7 +81,7 @@ function formatValue(valueCm: number, unit: Unit) {
   return unit === "metric" ? String(Math.round(valueCm)) : (valueCm / CM_PER_INCH).toFixed(1);
 }
 
-function MeasurementField({
+function MeasurementSlider({
   id,
   label,
   valueCm,
@@ -99,21 +99,26 @@ function MeasurementField({
   onChange: (valueCm: number) => void;
 }) {
   const factor = unit === "metric" ? 1 : CM_PER_INCH;
+  const sliderValue = unit === "metric"
+    ? Math.round(valueCm)
+    : Number((valueCm / factor).toFixed(1));
+  const unitLabel = unit === "metric" ? "cm" : "in";
   return (
-    <label className="calculator-field" htmlFor={id}>
-      <span>{label}</span>
-      <div>
-        <input
-          id={id}
-          type="number"
-          min={minCm / factor}
-          max={maxCm / factor}
-          step={unit === "metric" ? 1 : 0.1}
-          value={formatValue(valueCm, unit)}
-          onChange={(event) => onChange(Number(event.target.value) * factor)}
-        />
-        <small>{unit === "metric" ? "cm" : "in"}</small>
-      </div>
+    <label className="range-control calculator-range" htmlFor={id}>
+      <span className="range-heading">
+        <span>{label}</span>
+        <strong>{formatValue(valueCm, unit)}<small> {unitLabel}</small></strong>
+      </span>
+      <input
+        id={id}
+        type="range"
+        min={minCm / factor}
+        max={maxCm / factor}
+        step={unit === "metric" ? 1 : 0.1}
+        value={sliderValue}
+        onChange={(event) => onChange(Number(event.target.value) * factor)}
+      />
+      <span className="range-limits"><span>{formatValue(minCm, unit)} {unitLabel}</span><span>{formatValue(maxCm, unit)} {unitLabel}</span></span>
     </label>
   );
 }
@@ -124,10 +129,13 @@ export function BodyShapeCalculator() {
   const [measurements, setMeasurements] = useState<BodyShapeMeasurements>(initial.measurements);
   const [unit, setUnit] = useState<Unit>("metric");
   const [viewMode, setViewMode] = useState<ViewMode>("front");
+  const [bodyHue, setBodyHue] = useState(120);
   const [modelLoading, setModelLoading] = useState(true);
   const result = calculateBodyShape(measurements);
   const resultCopy = BODY_SHAPE_COPY[result];
   const profile = createCalculatorBodyProfile(modelType, measurements, viewMode);
+  // Three.js Color#set accepts the comma-separated CSS HSL syntax.
+  const bodyColor = `hsl(${bodyHue}, 78%, 64%)`;
 
   useEffect(() => {
     const params = new URLSearchParams({
@@ -164,39 +172,56 @@ export function BodyShapeCalculator() {
             <a href="/?reset=1"><span aria-hidden="true">◎</span>3D Body Simulator</a>
             <a className="current" href="/body-shape-calculator/"><span aria-hidden="true">◇</span>Body Shape Calculator</a>
           </nav>
+          <div className="tool-sidebar-section">
+            <span className="tool-sidebar-label">RESOURCES</span>
+            <nav aria-label="Resources">
+              <button className="blog-menu-item" type="button" disabled><span aria-hidden="true">✎</span>Blog</button>
+            </nav>
+          </div>
         </aside>
         <div className="calculator-content">
-      <section className="calculator-hero" aria-labelledby="calculator-title">
-        <div className="calculator-inputs">
-          <span className="section-kicker">FREE 3D BODY TYPE TOOL</span>
-          <h1 id="calculator-title">Body Shape <em>Calculator</em></h1>
-          <h2>What's My Body Shape? Calculate Your Body Type Free</h2>
-          <p>Enter your measurements to find your body type, then see its proportions in 3D.</p>
-          <div className="calculator-segmented" role="group" aria-label="Gender">
-            <button type="button" aria-pressed={modelType === "female"} onClick={() => selectModel("female")}>♀ Female</button>
-            <button type="button" aria-pressed={modelType === "male"} onClick={() => selectModel("male")}>♂ Male</button>
+      <div className="workspace calculator-workspace">
+        <section className="stage-card calculator-stage-card" aria-labelledby="calculator-title">
+          <div className="stage-heading calculator-stage-heading">
+            <div><span className="section-kicker">FREE 3D BODY TYPE TOOL</span><h1 id="calculator-title" className="stage-title">Body Shape <em>Calculator</em></h1></div>
+            <span className="asset-status"><i />LIVE 3D PREVIEW</span>
           </div>
-          <div className="calculator-fields">
-            <MeasurementField id="calculator-height" label="Height" valueCm={measurements.heightCm} unit={unit} minCm={140} maxCm={200} onChange={(value) => updateMeasurement("heightCm", value)} />
-            <MeasurementField id="calculator-shoulder" label="Shoulders (around)" valueCm={measurements.shoulderCm} unit={unit} minCm={55} maxCm={160} onChange={(value) => updateMeasurement("shoulderCm", value)} />
-            <MeasurementField id="calculator-bust" label="Bust" valueCm={measurements.bustCm} unit={unit} minCm={50} maxCm={170} onChange={(value) => updateMeasurement("bustCm", value)} />
-            <MeasurementField id="calculator-waist" label="Waist" valueCm={measurements.waistCm} unit={unit} minCm={40} maxCm={160} onChange={(value) => updateMeasurement("waistCm", value)} />
-            <MeasurementField id="calculator-hip" label="Hips" valueCm={measurements.hipCm} unit={unit} minCm={55} maxCm={180} onChange={(value) => updateMeasurement("hipCm", value)} />
+          <div className="canvas-wrap calculator-preview" aria-label="Interactive 3D body shape preview">
+            <div className="calculator-result"><span>YOUR BODY SHAPE</span><strong>{resultCopy.label}</strong></div>
+            <Suspense fallback={<div className="calculator-canvas-loading">Preparing 3D preview…</div>}>
+              <BodyCanvas profile={profile} showFatLayer={false} viewMode={viewMode} onViewModeChange={setViewMode} onLoadingChange={setModelLoading} backgroundColor="#070707" bodyColor={bodyColor} showGround={false} />
+            </Suspense>
+            {modelLoading && <div className="calculator-model-loading">Loading model…</div>}
+            <div className="calculator-view-buttons" aria-label="View controls">{(["front", "left", "right", "back"] as const).map((view) => <button key={view} type="button" className={viewMode === view ? "active" : ""} onClick={() => setViewMode(view)}>{view}</button>)}</div>
+            <label className="calculator-color-control" htmlFor="calculator-body-color">
+              <span><b>MODEL COLOR</b><i style={{ backgroundColor: bodyColor }} aria-hidden="true" /></span>
+              <input id="calculator-body-color" type="range" min="0" max="360" value={bodyHue} onChange={(event) => setBodyHue(Number(event.target.value))} aria-label="Body color" style={{ "--model-color": bodyColor } as CSSProperties} />
+            </label>
           </div>
-          <div className="calculator-unit-switch" role="group" aria-label="Measurement unit"><span>Measurements</span><button type="button" className={unit === "metric" ? "selected" : ""} onClick={() => setUnit("metric")}>cm</button><button type="button" className={unit === "imperial" ? "selected" : ""} onClick={() => setUnit("imperial")}>inches</button></div>
-        </div>
+          <p className="calculator-stage-note">Adjust the parameters on the right to see a proportion-based 3D body-shape estimate.</p>
+        </section>
 
-        <div className="calculator-preview" aria-label="Interactive 3D body shape preview">
-          <div className="calculator-result"><span>YOUR BODY SHAPE</span><strong>{resultCopy.label}</strong></div>
-          <span className="calculator-live"><i />LIVE 3D PREVIEW</span>
-          <Suspense fallback={<div className="calculator-canvas-loading">Preparing 3D preview…</div>}>
-            <BodyCanvas profile={profile} showFatLayer={false} viewMode={viewMode} onViewModeChange={setViewMode} onLoadingChange={setModelLoading} />
-          </Suspense>
-          {modelLoading && <div className="calculator-model-loading">Loading model…</div>}
-          <div className="calculator-view-buttons" aria-label="View controls">{(["front", "left", "right", "back"] as const).map((view) => <button key={view} type="button" className={viewMode === view ? "active" : ""} onClick={() => setViewMode(view)}>{view}</button>)}</div>
-        </div>
-        <p className="calculator-hero-note">Your body shape is determined by the ratio of your shoulders, waist, and hips. Enter your measurements above and our 3D engine will render your body type instantly — no signup, no email required.</p>
-      </section>
+        <aside className="side-panel calculator-panel">
+          <section className="control-card calculator-control-card" aria-label="Body shape measurements">
+            <span className="section-kicker">CUSTOMIZE</span>
+            <h2>Body Shape Measurements</h2>
+            <p className="section-description">Use the sliders to match your measurements.</p>
+            <div className="calculator-segmented" role="group" aria-label="Gender">
+              <button type="button" aria-pressed={modelType === "female"} onClick={() => selectModel("female")}>♀ Female</button>
+              <button type="button" aria-pressed={modelType === "male"} onClick={() => selectModel("male")}>♂ Male</button>
+            </div>
+            <div className="calculator-unit-switch" role="group" aria-label="Measurement unit"><span>Measurements</span><button type="button" className={unit === "metric" ? "selected" : ""} onClick={() => setUnit("metric")}>cm</button><button type="button" className={unit === "imperial" ? "selected" : ""} onClick={() => setUnit("imperial")}>inches</button></div>
+            <div className="controls-divider" />
+            <div className="calculator-fields">
+              <MeasurementSlider id="calculator-height" label="Height" valueCm={measurements.heightCm} unit={unit} minCm={140} maxCm={200} onChange={(value) => updateMeasurement("heightCm", value)} />
+              <MeasurementSlider id="calculator-shoulder" label="Shoulders (around)" valueCm={measurements.shoulderCm} unit={unit} minCm={55} maxCm={160} onChange={(value) => updateMeasurement("shoulderCm", value)} />
+              <MeasurementSlider id="calculator-bust" label="Bust" valueCm={measurements.bustCm} unit={unit} minCm={50} maxCm={170} onChange={(value) => updateMeasurement("bustCm", value)} />
+              <MeasurementSlider id="calculator-waist" label="Waist" valueCm={measurements.waistCm} unit={unit} minCm={40} maxCm={160} onChange={(value) => updateMeasurement("waistCm", value)} />
+              <MeasurementSlider id="calculator-hip" label="Hips" valueCm={measurements.hipCm} unit={unit} minCm={55} maxCm={180} onChange={(value) => updateMeasurement("hipCm", value)} />
+            </div>
+          </section>
+        </aside>
+      </div>
 
       <section className="calculator-section" aria-labelledby="five-body-shapes"><span className="section-kicker">BODY TYPE GUIDE</span><h2 id="five-body-shapes">Female Body Shapes</h2><div className="calculator-shape-grid">{shapeCards.map(([name, image, width, height, description], index) => <article key={name}><img className="shape-thumbnail" src={image} alt={`${name} body shape illustration`} width={width} height={height} loading="lazy" /><h3>{name}</h3><p>{description}</p><p className="shape-how-to"><strong>How to tell:</strong> {shapeHowToTell[index]}</p></article>)}</div></section>
       <section className="calculator-section" aria-labelledby="five-male-body-shapes"><span className="section-kicker">MALE BODY TYPE GUIDE</span><h2 id="five-male-body-shapes">Male Body Shapes</h2><div className="calculator-shape-grid">{maleShapeCards.map(([name, image, width, height, description], index) => <article key={name}><img className="shape-thumbnail" src={image} alt={`${name} male body shape illustration`} width={width} height={height} loading="lazy" /><h3>{name}</h3><p>{description}</p><p className="shape-how-to"><strong>How to tell:</strong> {maleShapeHowToTell[index]}</p></article>)}</div></section>

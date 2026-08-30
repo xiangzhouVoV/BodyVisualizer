@@ -60,6 +60,9 @@ export function BodyCanvas({
   onViewModeChange,
   onLoadingChange,
   onLoadingProgress,
+  backgroundColor = "#efeee9",
+  bodyColor,
+  showGround = true,
 }: {
   profile: BodyProfile;
   showFatLayer: boolean;
@@ -67,6 +70,9 @@ export function BodyCanvas({
   onViewModeChange: (view: ViewMode) => void;
   onLoadingChange?: (loading: boolean) => void;
   onLoadingProgress?: (progress: number) => void;
+  backgroundColor?: THREE.ColorRepresentation;
+  bodyColor?: THREE.ColorRepresentation;
+  showGround?: boolean;
 }) {
   return (
     <Canvas
@@ -75,16 +81,16 @@ export function BodyCanvas({
       camera={{ position: [0, 0.95, 3.1], fov: 34 }}
       gl={{ antialias: true, preserveDrawingBuffer: true }}
     >
-      <color attach="background" args={["#efeee9"]} />
+      <color attach="background" args={[backgroundColor]} />
       <ambientLight intensity={1.25} />
       <hemisphereLight args={["#fff8ed", "#9aa5b1", 1.1]} />
       <directionalLight position={[3, 5, 4]} intensity={2.4} castShadow shadow-mapSize={[1024, 1024]} />
       <directionalLight position={[-4, 2, -2]} intensity={0.65} />
-      <ModelAdapter profile={profile} showFatLayer={showFatLayer} onLoadingChange={onLoadingChange} onLoadingProgress={onLoadingProgress} />
-      <mesh position={[0, -0.01, 0]} receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
+      <ModelAdapter profile={profile} showFatLayer={showFatLayer} bodyColor={bodyColor} onLoadingChange={onLoadingChange} onLoadingProgress={onLoadingProgress} />
+      {showGround && <mesh position={[0, -0.01, 0]} receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[4, 64]} />
         <shadowMaterial transparent opacity={0.22} />
-      </mesh>
+      </mesh>}
       <CameraController heightCm={profile.heightCm} viewMode={viewMode} onViewModeChange={onViewModeChange} />
     </Canvas>
   );

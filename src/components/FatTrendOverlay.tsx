@@ -68,6 +68,7 @@ function createRegionalFatMaterial(bounds: THREE.Box3, opacity: number, profile:
     halfDepth: { value: halfDepth },
     bmiDelta: { value: bmiDelta },
     bodyFatDelta: { value: bodyFatDelta },
+    calculatorShapeMode: { value: profile.shapeRenderMode === "calculator" ? 1 : 0 },
     shoulderAdjustCm: { value: profile.measurements.shoulderAdjustCm },
     bustAdjustCm: { value: profile.measurements.bustAdjustCm },
     waistAdjustCm: { value: profile.measurements.waistAdjustCm },
@@ -124,6 +125,7 @@ uniform float fatShellDepth;
 ${useShapeShader ? `uniform float halfDepth;
 uniform float bmiDelta;
 uniform float bodyFatDelta;
+uniform float calculatorShapeMode;
 uniform float shoulderAdjustCm;
 uniform float bustAdjustCm;
 uniform float waistAdjustCm;
@@ -140,6 +142,7 @@ float fatBell(float value, float center, float width) {
 float shapeVertical = clamp((position.y - minY) / height, 0.0, 1.0);
 float shapeLateral = abs(position.x - centerX) / halfWidth;
 float shapeArmZone = clamp((shapeLateral - 0.42) / 0.22, 0.0, 1.0);
+float shapeWaistTorsoMask = 1.0 - smoothstep(0.30, 0.40, shapeLateral);
 // Blend the arm layer out through the forearm and wrist. It keeps the shell
 // attached to the arm while preventing a hard, floating cuff around the hand.
 float shapeArm = shapeArmZone * smoothstep(0.34, 0.58, shapeVertical);
@@ -147,8 +150,34 @@ float shapeShoulderVertical = fatBell(shapeVertical, 0.78, 0.048);
 float shapeShoulderLateral = smoothstep(0.18, 0.46, shapeLateral) * (1.0 - smoothstep(0.56, 0.66, shapeLateral));
 float shapeShoulder = shapeShoulderVertical * shapeShoulderLateral;
 float shapeChest = fatBell(shapeVertical, 0.74, 0.09) * (1.0 - shapeArmZone * 0.90);
-float shapeWaist = fatBell(shapeVertical, 0.56, 0.10) * (1.0 - shapeArmZone);
-float shapeHip = fatBell(shapeVertical, 0.43, ${hipBandWidth}) * (1.0 - shapeArmZone);
+// The lower abdomen and lumbar waistline use different bands. This keeps the
+// overlay from adding a pointed bump to the upper glute on the back view.
+float shapeDepthOffset = (position.z - centerZ) / halfDepth;
+float shapeRearSurface = smoothstep(0.0, 0.25, -shapeDepthOffset);
+float shapeCalculatorWaistLateralBand = fatBell(shapeVertical, 0.60, 0.075)
+  * smoothstep(0.52, 0.585, shapeVertical)
+  * (1.0 - smoothstep(0.68, 0.715, shapeVertical));
+float shapeCalculatorWaistRearBand = fatBell(shapeVertical, 0.665, 0.045)
+  * smoothstep(0.62, 0.64, shapeVertical)
+  * (1.0 - smoothstep(0.71, 0.73, shapeVertical));
+float shapeSimulatorWaist = fatBell(shapeVertical, 0.56, 0.10) * (1.0 - shapeArmZone);
+float shapeCalculatorWaistLateral = shapeCalculatorWaistLateralBand * shapeWaistTorsoMask;
+float shapeCalculatorWaistDepth = mix(shapeCalculatorWaistLateralBand, shapeCalculatorWaistRearBand, shapeRearSurface) * shapeWaistTorsoMask;
+float shapeWaistLateral = mix(shapeSimulatorWaist, shapeCalculatorWaistLateral, calculatorShapeMode);
+float shapeWaistDepth = mix(shapeSimulatorWaist, shapeCalculatorWaistDepth, calculatorShapeMode);
+float shapeWaist = max(shapeWaistLateral, shapeWaistDepth);
+float shapeSimulatorHip = fatBell(shapeVertical, 0.43, ${hipBandWidth}) * (1.0 - shapeArmZone);
+float shapeCalculatorHipLateralBand = fatBell(shapeVertical, 0.43, 0.125)
+  * smoothstep(0.27, 0.33, shapeVertical)
+  * (1.0 - smoothstep(0.54, 0.60, shapeVertical));
+float shapeCalculatorHipRearBand = fatBell(shapeVertical, 0.445, 0.115)
+  * smoothstep(0.27, 0.33, shapeVertical)
+  * (1.0 - smoothstep(0.56, 0.62, shapeVertical));
+float shapeCalculatorHipLateral = shapeCalculatorHipLateralBand * (1.0 - shapeArmZone);
+float shapeCalculatorHipDepth = mix(shapeCalculatorHipLateralBand, shapeCalculatorHipRearBand, shapeRearSurface) * (1.0 - shapeArmZone);
+float shapeHipLateral = mix(shapeSimulatorHip, shapeCalculatorHipLateral, calculatorShapeMode);
+float shapeHipDepth = mix(shapeSimulatorHip, shapeCalculatorHipDepth, calculatorShapeMode);
+float shapeHip = max(shapeHipLateral, shapeHipDepth);
 float shapeThigh = fatBell(shapeVertical, 0.28, 0.12) * (1.0 - shapeArmZone);
 float shapeCalf = fatBell(shapeVertical, 0.11, 0.09) * (1.0 - shapeArmZone);
 float shapeFace = fatBell(shapeVertical, 0.84, 0.08) * (1.0 - smoothstep(0.18, 0.56, shapeLateral));
@@ -156,8 +185,14 @@ float shapeHead = smoothstep(0.94, 0.99, shapeVertical);
 float shapeDistribution = shapeChest * chestBias + shapeWaist * waistBias + shapeHip * hipBias + shapeThigh * thighBias + shapeCalf * calfBias + shapeArm * armBias + shapeFace * faceBias;
 float shapeFatEligible = max(max(max(shapeChest, shapeWaist), max(shapeHip, shapeThigh)), max(max(shapeCalf, shapeArm), shapeFace)) * (1.0 - shapeHead * 0.97);
 float shapeBodyMask = clamp(shapeFatEligible * (0.32 + shapeDistribution * 0.48), 0.0, 0.9);
-float shapeMeasurementX = shapeChest * bustAdjustCm * 0.002 + shapeWaist * waistAdjustCm * 0.010 + shapeHip * hipAdjustCm * 0.007 + shapeArm * armAdjustCm * 0.0065 + (shapeThigh + shapeCalf * 0.6) * legAdjustCm * 0.0065;
-float shapeMeasurementZ = shapeChest * bustAdjustCm * 0.0012 + shapeWaist * waistAdjustCm * 0.002 + shapeHip * hipAdjustCm * 0.007 + shapeArm * armAdjustCm * 0.006 + (shapeThigh + shapeCalf * 0.6) * legAdjustCm * 0.006;
+float shapeWaistLateralGain = mix(0.010, 0.0090, calculatorShapeMode);
+float shapeCalculatorDepthGain = mix(0.0068, 0.0035, shapeRearSurface);
+float shapeWaistDepthGain = mix(0.002, shapeCalculatorDepthGain, calculatorShapeMode);
+float shapeHipLateralGain = mix(0.007, 0.0110, calculatorShapeMode);
+float shapeCalculatorHipDepthGain = mix(0.0084, 0.0088, shapeRearSurface);
+float shapeHipDepthGain = mix(0.007, shapeCalculatorHipDepthGain, calculatorShapeMode);
+float shapeMeasurementX = shapeChest * bustAdjustCm * 0.002 + shapeWaistLateral * waistAdjustCm * shapeWaistLateralGain + shapeHipLateral * hipAdjustCm * shapeHipLateralGain + shapeArm * armAdjustCm * 0.0065 + (shapeThigh + shapeCalf * 0.6) * legAdjustCm * 0.0065;
+float shapeMeasurementZ = shapeChest * bustAdjustCm * 0.0012 + shapeWaistDepth * waistAdjustCm * shapeWaistDepthGain + shapeHipDepth * hipAdjustCm * shapeHipDepthGain + shapeArm * armAdjustCm * 0.006 + (shapeThigh + shapeCalf * 0.6) * legAdjustCm * 0.006;
 float shapeWeightX = (bmiDelta * 0.002 * shapeBodyMask + bodyFatDelta * shapeFatEligible * (0.018 + shapeDistribution * 0.10)) * ${weightShapeGain};
 float shapeWeightZ = (bmiDelta * 0.0018 * shapeBodyMask + bodyFatDelta * shapeFatEligible * (0.02 + shapeDistribution * 0.12)) * ${weightShapeGain};
 // Concentrate male weight gain in the abdomen with a forward projection,
@@ -169,7 +204,7 @@ float shapeXSurface = clamp(shapeLateral, 0.0, 1.0);
 float shapeZSurface = clamp(abs(position.z - centerZ) / halfDepth, 0.0, 1.0);
 float shapeFrontDepth = clamp((position.z - centerZ) / halfDepth, 0.0, 1.0);
 float shapeBustProjection = shapeChest * bustAdjustCm * 0.010 * (0.12 + shapeFrontDepth * 0.88);
-float shapeShoulderOffset = shapeShoulder * shoulderAdjustCm * 0.0036;
+float shapeShoulderOffset = shapeShoulder * shoulderAdjustCm * 0.0036 * calculatorShapeMode;
 transformed.x += shapeXDirection * ((shapeWeightX + shapeMeasurementX) * shapeXSurface + shapeShoulderOffset);
 transformed.z += shapeZDirection * (shapeWeightZ + shapeMeasurementZ) * shapeZSurface + shapeBustProjection;`
       : "";
@@ -207,7 +242,7 @@ transformed += normalize(objectNormal) * fatShellDepth * clamp(distribution, 0.0
       "#include <color_fragment>\ndiffuseColor.a *= vFatMask;",
     );
   };
-  material.customProgramCacheKey = () => useShapeShader ? "regional-fat-overlay-shape-v7" : "regional-fat-overlay-v5";
+  material.customProgramCacheKey = () => useShapeShader ? "regional-fat-overlay-shape-v18" : "regional-fat-overlay-v5";
   material.userData.fatUniforms = uniforms;
   return material;
 }
@@ -316,6 +351,7 @@ export function FatTrendOverlay({
         uniforms.bmiDelta.value = currentBmi - baseBmi;
         uniforms.bodyFatDelta.value = fat - baseFat;
         uniforms.fatShellDepth.value = Math.max(0, fat - baseFat) * (profile.modelType === "female" ? 0.045 : 0.022);
+        uniforms.calculatorShapeMode.value = profile.shapeRenderMode === "calculator" ? 1 : 0;
         uniforms.shoulderAdjustCm.value = profile.measurements.shoulderAdjustCm;
         uniforms.bustAdjustCm.value = profile.measurements.bustAdjustCm;
         uniforms.waistAdjustCm.value = profile.measurements.waistAdjustCm;

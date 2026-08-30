@@ -176,7 +176,7 @@ function removeTinyDetachedIslands(geometry: THREE.BufferGeometry, minimumVertic
   return geometry;
 }
 
-function RiggedGlbModel({ source, profile, showFatLayer }: { source: THREE.Object3D; profile: BodyProfile; showFatLayer: boolean }) {
+function RiggedGlbModel({ source, profile, showFatLayer, bodyColor = "#a96850", tintDetails = false }: { source: THREE.Object3D; profile: BodyProfile; showFatLayer: boolean; bodyColor?: THREE.ColorRepresentation; tintDetails?: boolean }) {
   const instance = useMemo(() => {
     const cloned = cloneSkeleton(source);
 
@@ -194,12 +194,18 @@ function RiggedGlbModel({ source, profile, showFatLayer }: { source: THREE.Objec
           : [object.material as THREE.Material];
         const styledMaterials = materials.map((material) => {
           const next = material.clone() as THREE.MeshStandardMaterial;
-          // Preserve authored textured models, while neutralising untextured
-          // anatomy assets so the yellow fat layer remains visually distinct.
-          // Match the warm, natural skin tone used by the body-shape guide
-          // illustrations while retaining authored textures when an asset has
-          // them. The warmer surface still reads clearly beneath the fat layer.
-          if (!next.map) next.color.set("#a96850");
+          const isNonBodyDetail = /eye|teeth|tongue|hair|lash|nail|mouth|pupil/i.test(`${object.name} ${material.name}`);
+          // Mark body-surface materials so Calculator can recolour them later
+          // without rebuilding the GLB on every slider movement.
+          if (!isNonBodyDetail) {
+            next.userData.bodyColorMaterial = true;
+            next.color.set("#a96850");
+          } else {
+            // Calculator's single-colour display also tints facial details.
+            // This prevents a source eye material from appearing bright white
+            // while its mirrored eye is blended into the face material.
+            next.userData.colorableDetailMaterial = true;
+          }
           next.roughness = Math.max(next.roughness, 0.62);
           next.metalness = 0;
           return next;
@@ -247,6 +253,18 @@ function RiggedGlbModel({ source, profile, showFatLayer }: { source: THREE.Objec
   const baseMeshScales = useMemo(() => captureBaseMeshScales(instance), [instance]);
   const baseMeshGeometry = useMemo(() => captureBaseMeshGeometry(instance), [instance]);
   const baseModelTransform = useMemo(() => captureBaseModelTransform(instance), [instance]);
+  useEffect(() => {
+    instance.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      materials.forEach((material) => {
+        const shouldTint = material.userData.bodyColorMaterial || (tintDetails && material.userData.colorableDetailMaterial);
+        if (!shouldTint || !("color" in material)) return;
+        const color = (material as THREE.MeshStandardMaterial).color;
+        if (color instanceof THREE.Color) color.set(bodyColor);
+      });
+    });
+  }, [bodyColor, instance, tintDetails]);
   const overlayTransform = useMemo(() => {
     const heightRigNames = ["Spine", "Spine1", "LeftThigh", "LeftUpLeg", "RightThigh", "RightUpLeg", "LeftLeg", "RightLeg"];
     let hasHeightRig = false;
@@ -285,7 +303,7 @@ function RiggedGlbModel({ source, profile, showFatLayer }: { source: THREE.Objec
  * Drop correctly named GLBs into public/models to activate the rigged path;
  * otherwise the existing procedural mannequin stays visible.
  */
-export function ModelAdapter({ profile, showFatLayer, onLoadingChange, onLoadingProgress }: { profile: BodyProfile; showFatLayer: boolean; onLoadingChange?: (loading: boolean) => void; onLoadingProgress?: (progress: number) => void }) {
+export function ModelAdapter({ profile, showFatLayer, bodyColor, onLoadingChange, onLoadingProgress }: { profile: BodyProfile; showFatLayer: boolean; bodyColor?: THREE.ColorRepresentation; onLoadingChange?: (loading: boolean) => void; onLoadingProgress?: (progress: number) => void }) {
   const { asset, loading, progress } = useGlbAsset(profile.modelType);
   useEffect(() => onLoadingChange?.(loading), [loading, onLoadingChange]);
   useEffect(() => onLoadingProgress?.(progress), [onLoadingProgress, progress]);
@@ -299,5 +317,5 @@ export function ModelAdapter({ profile, showFatLayer, onLoadingChange, onLoading
     ? profile
     : { ...profile, modelType: asset.modelType };
 
-  return <RiggedGlbModel source={asset.scene} profile={displayProfile} showFatLayer={showFatLayer} />;
+  return <RiggedGlbModel source={asset.scene} profile={displayProfile} showFatLayer={showFatLayer} bodyColor={bodyColor} tintDetails={Boolean(bodyColor)} />;
 }

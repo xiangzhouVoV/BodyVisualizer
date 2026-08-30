@@ -1,4 +1,4 @@
-import { lazy, Suspense, useLayoutEffect, useState } from "react";
+import { lazy, Suspense, useLayoutEffect, useState, type CSSProperties } from "react";
 
 import { BodyControls } from "../components/BodyControls";
 import { ViewControls } from "../components/ViewControls";
@@ -9,6 +9,7 @@ const BodyCanvas = lazy(() => import("../components/BodyCanvas"));
 export function App() {
   const [modelLoading, setModelLoading] = useState(true);
   const [modelLoadProgress, setModelLoadProgress] = useState(0);
+  const [bodyHue, setBodyHue] = useState(120);
   const modelType = useBodyStore((state) => state.modelType);
   const heightCm = useBodyStore((state) => state.heightCm);
   const weightKg = useBodyStore((state) => state.weightKg);
@@ -31,6 +32,7 @@ export function App() {
   const previewProfile = activeProfile === "current"
     ? { heightCm, weightKg, measurements }
     : { heightCm: targetHeightCm, weightKg: targetWeightKg, measurements: targetMeasurements };
+  const bodyColor = `hsl(${bodyHue}, 78%, 64%)`;
 
   return (
     <main className="app-shell">
@@ -53,6 +55,12 @@ export function App() {
             <a className="current" href="/"><span aria-hidden="true">◎</span>3D Body Simulator</a>
             <a href="/body-shape-calculator/"><span aria-hidden="true">◇</span>Body Shape Calculator</a>
           </nav>
+          <div className="tool-sidebar-section">
+            <span className="tool-sidebar-label">RESOURCES</span>
+            <nav aria-label="Resources">
+              <button className="blog-menu-item" type="button" disabled><span aria-hidden="true">✎</span>Blog</button>
+            </nav>
+          </div>
         </aside>
         <div className="app-content">
       <div className="workspace">
@@ -61,9 +69,9 @@ export function App() {
             <div><span className="section-kicker">3D PREVIEW · {activeProfile === "current" ? "CURRENT" : "TARGET"}</span><p className="stage-title">Your Body, <em>Worthy of Care</em></p></div>
             <span className="asset-status"><i />PARAMETRIC MODEL</span>
           </div>
-          <div className="canvas-wrap" aria-label="Interactive 3D body shape visualizer">
+          <div className="canvas-wrap simulator-preview" aria-label="Interactive 3D body shape visualizer">
             <Suspense fallback={<div className="canvas-loading">Loading 3D body visualizer…</div>}>
-              <BodyCanvas profile={{ modelType, ...previewProfile, viewMode }} showFatLayer={showFatLayer} viewMode={viewMode} onViewModeChange={setViewMode} onLoadingChange={setModelLoading} onLoadingProgress={setModelLoadProgress} />
+              <BodyCanvas profile={{ modelType, ...previewProfile, viewMode }} showFatLayer={showFatLayer} viewMode={viewMode} onViewModeChange={setViewMode} onLoadingChange={setModelLoading} onLoadingProgress={setModelLoadProgress} backgroundColor="#070707" bodyColor={bodyColor} showGround={false} />
             </Suspense>
             {modelLoading && (
               <div className="model-loading-overlay" role="status" aria-live="polite">
@@ -77,6 +85,10 @@ export function App() {
             )}
             <span className="sr-only">Interactive 3D body model. Enter height, weight, and optional measurements, then rotate and zoom to explore the body shape.</span>
             <div className="canvas-hint">Drag to rotate&nbsp; · &nbsp;Scroll to zoom</div>
+            <label className="simulator-color-control" htmlFor="simulator-body-color">
+              <span><b>MODEL COLOR</b><i style={{ backgroundColor: bodyColor }} aria-hidden="true" /></span>
+              <input id="simulator-body-color" type="range" min="0" max="360" value={bodyHue} onChange={(event) => setBodyHue(Number(event.target.value))} aria-label="Body color" style={{ "--model-color": bodyColor } as CSSProperties} />
+            </label>
           </div>
           <div className="stage-footer"><ViewControls /></div>
         </section>

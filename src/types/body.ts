@@ -1,6 +1,7 @@
 export type ModelType = "female" | "male";
 
 export type ViewMode = "front" | "left" | "right" | "back" | "free";
+export type BodyShapeRenderMode = "simulator" | "calculator";
 
 export type ProfileSlot = "current" | "target";
 export type UnitSystem = "metric" | "imperial";
@@ -30,4 +31,6 @@ export interface BodyProfile {
   weightKg: number;
   viewMode: ViewMode;
   measurements: CircumferenceAdjustments;
+  /** Calculator measurements use their own isolated regional deformation. */
+  shapeRenderMode?: BodyShapeRenderMode;
 }
