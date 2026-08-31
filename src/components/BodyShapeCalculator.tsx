@@ -233,6 +233,12 @@ export function BodyShapeCalculator() {
 
       <section className="calculator-cta"><div><span className="section-kicker">NEXT STEP</span><h2>Want a full 3D view?</h2><p>Explore weight, height, and local body-proportion adjustments in the Body Simulator.</p></div><a href={simulatorUrl}>See Full 3D Body Simulator →</a></section>
       <section className="calculator-references" aria-labelledby="calculator-references"><h2 id="calculator-references">References</h2><p>Body-shape categories are simplified visual descriptions, not medical diagnoses. For health guidance, consider measurements alongside professional advice.</p><ul><li><a href="https://www.cdc.gov/bmi/about/index.html" target="_blank" rel="noopener">CDC — About BMI</a></li><li><a href="https://pubmed.ncbi.nlm.nih.gov/15230982/" target="_blank" rel="noopener">PubMed — Waist circumference and cardiometabolic risk</a></li></ul></section>
+      <footer className="calculator-footer">
+        <span>© 2026 Body Visualizer</span>
+        <a className="fazier-badge" href="https://fazier.com" target="_blank" rel="nofollow noopener noreferrer">
+          <img src="https://fazier.com/api/v1//public/badges/launch_badges.svg?badge_type=launched&theme=neutral" width={120} height={36} alt="Launched on Fazier" loading="lazy" />
+        </a>
+      </footer>
         </div>
       </div>
     </main>

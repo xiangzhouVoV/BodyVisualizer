@@ -98,7 +98,7 @@ export function App() {
 
       <footer className="disclaimer">
         <span>ⓘ</span> Results are based on a parametric 3D body model for visual reference only. They do not represent real body measurements, medical diagnosis, or health advice.
-        <a href="https://github.com/xiangzhouVoV/GTS-BodyShapeVisualizer-" target="_blank" rel="noreferrer">Open Source on GitHub</a>
+        <a href="https://github.com/xiangzhouVoV/BodyVisualizer" target="_blank" rel="noreferrer">Open Source on GitHub</a>
       </footer>
         </div>
       </div>
