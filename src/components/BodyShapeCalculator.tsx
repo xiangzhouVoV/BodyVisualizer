@@ -175,7 +175,7 @@ export function BodyShapeCalculator() {
           <div className="tool-sidebar-section">
             <span className="tool-sidebar-label">RESOURCES</span>
             <nav aria-label="Resources">
-              <button className="blog-menu-item" type="button" disabled><span aria-hidden="true">✎</span>Blog</button>
+              <a className="blog-menu-item" href="https://body-visualizer-blog.pages.dev"><span aria-hidden="true">✎</span>Blog</a>
             </nav>
           </div>
         </aside>
