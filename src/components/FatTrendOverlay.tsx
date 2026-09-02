@@ -25,6 +25,27 @@ const REGIONS: Region[] = [
   { name: "right-calf", position: [0.09, 0.18, 0], scale: [0.07, 0.18, 0.07], growth: [0.025, 0.035, 0.025] },
 ];
 
+// Keep the UI's fat-trend index responsive, while making 3D volume grow more
+// gradually. The previous one-to-one mapping reached its maximum visual body
+// volume far too early for high-BMI inputs.
+const VISUAL_FAT_GAIN = 0.55;
+// The male asset starts from a broader baseline and otherwise reads almost
+// unchanged across moderate weight increases. Let its visible fat response
+// climb a little faster without changing the female progression.
+const MALE_VISUAL_FAT_GAIN = 0.62;
+const VISUAL_BMI_VOLUME_GAIN = 0.5;
+
+function getVisualFatState(profile: BodyProfile) {
+  const rawFat = getWeightMorphs(profile.heightCm, profile.weightKg).bodyFat;
+  const baselineFat = getWeightMorphs(
+    DEFAULT_PROFILE[profile.modelType].heightCm,
+    DEFAULT_PROFILE[profile.modelType].weightKg,
+  ).bodyFat;
+  const visualFatGain = profile.modelType === "male" ? MALE_VISUAL_FAT_GAIN : VISUAL_FAT_GAIN;
+  const visualFat = Math.max(0, Math.min(1, baselineFat + (rawFat - baselineFat) * visualFatGain));
+  return { baselineFat, visualFat };
+}
+
 function isDetailMesh(mesh: THREE.Mesh) {
   const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
   return /eye|teeth|tongue|hair|lash|nail|mouth|pupil/i.test(
@@ -37,29 +58,33 @@ function createRegionalFatMaterial(bounds: THREE.Box3, opacity: number, profile:
   const halfWidth = Math.max((bounds.max.x - bounds.min.x) / 2, 0.001);
   const halfDepth = Math.max((bounds.max.z - bounds.min.z) / 2, 0.001);
   const baseBmi = calculateBMI(DEFAULT_PROFILE[profile.modelType].heightCm, DEFAULT_PROFILE[profile.modelType].weightKg);
-  const bmiDelta = calculateBMI(profile.heightCm, profile.weightKg) - baseBmi;
-  const baseFat = getWeightMorphs(
-    DEFAULT_PROFILE[profile.modelType].heightCm,
-    DEFAULT_PROFILE[profile.modelType].weightKg,
-  ).bodyFat;
-  const bodyFatDelta = getWeightMorphs(profile.heightCm, profile.weightKg).bodyFat - baseFat;
+  const bmiDelta = (calculateBMI(profile.heightCm, profile.weightKg) - baseBmi) * VISUAL_BMI_VOLUME_GAIN;
+  const { baselineFat: baseFat, visualFat } = getVisualFatState(profile);
+  const bodyFatDelta = visualFat - baseFat;
   // The male source model has a broader base mesh than the female remesh.
   // Use a smaller outer-volume gain so its fat layer stays attached rather
   // than reading as a detached shell.
   const weightShapeGain = profile.modelType === "female" ? "0.80" : "0.72";
   const abdomenProjectionGain = profile.modelType === "female" ? "0.012" : "0.035";
+  // Soft-tissue trends are intentionally subtle and activate only above the
+  // model's baseline body-fat level. They are illustrative, not anatomical
+  // predictions for every person.
+  const abdomenForwardGain = profile.modelType === "female" ? "0.080" : "0.120";
+  const chestSagGain = profile.modelType === "female" ? "0.050" : "0.018";
+  const gluteProjectionGain = profile.modelType === "female" ? "0.075" : "0.045";
+  const gluteSagGain = profile.modelType === "female" ? "0.055" : "0.035";
   const hipBandWidth = profile.modelType === "female" ? "0.11" : "0.16";
   const regionalBias = profile.modelType === "female"
-    ? { chest: 0.38, waist: 1.55, hip: 1.65, thigh: 1.5, calf: 0.18, arm: 0.28 }
-    : { chest: 0.6, waist: 2.35, hip: 0.42, thigh: 0.95, calf: 0.25, arm: 0.36 };
+    ? { chest: 0.38, waist: 1.55, hip: 1.65, thigh: 1.5, calf: 0.70, arm: 0.28 }
+    : { chest: 0.6, waist: 2.35, hip: 0.42, thigh: 0.95, calf: 0.58, arm: 0.36 };
   // Keep the mask envelope shared by both models. Gender-specific fat
   // distribution still comes from regionalBias; the mask itself should not
   // erase the female surface at high weight.
-  const fatMaskGrowth = 0.82;
-  const fatMaskBase = "0.02";
-  const fatMaskGain = "0.62";
+  const fatMaskGrowth = 0.28;
+  const fatMaskBase = "0.005";
+  const fatMaskGain = "0.46";
   const uniforms = {
-    fatLevel: { value: 0 },
+    fatLevel: { value: visualFat },
     minY: { value: bounds.min.y },
     height: { value: height },
     centerX: { value: (bounds.min.x + bounds.max.x) / 2 },
@@ -84,18 +109,25 @@ function createRegionalFatMaterial(bounds: THREE.Box3, opacity: number, profile:
     faceBias: { value: profile.modelType === "female" ? 0.34 : 0.24 },
     // Only the fat above the asset's baseline is pushed outward. This gives
     // the added layer a visible edge without separating a normal-weight body.
-    fatShellDepth: { value: Math.max(0, bodyFatDelta) * (profile.modelType === "female" ? 0.045 : 0.022) },
+    fatShellDepth: { value: Math.max(0, bodyFatDelta) * (profile.modelType === "female" ? 0.035 : 0.018) },
   };
   // Keep one stable material type for both assets. This avoids shader-cache
   // mismatches while the shared regional fat shader is compiled.
   const material = new THREE.MeshStandardMaterial({
-    color: "#f4ce63",
+    color: "#ffad42",
+    emissive: "#3a1b00",
+    emissiveIntensity: 0.22,
     transparent: true,
     opacity,
     roughness: 0.94,
     metalness: 0,
-    depthTest: false,
-    depthWrite: false,
+    // Render only the visible surface. Disabling depth testing made the
+    // yellow shell show through the entire model at high weights.
+    depthTest: true,
+    // Some imported body surfaces have inconsistent winding. Render both
+    // sides, but write depth so the rear shell cannot blend through the
+    // visible front surface.
+    depthWrite: true,
     side: THREE.DoubleSide,
     polygonOffset: true,
     polygonOffsetFactor: -1,
@@ -179,7 +211,7 @@ float shapeHipLateral = mix(shapeSimulatorHip, shapeCalculatorHipLateral, calcul
 float shapeHipDepth = mix(shapeSimulatorHip, shapeCalculatorHipDepth, calculatorShapeMode);
 float shapeHip = max(shapeHipLateral, shapeHipDepth);
 float shapeThigh = fatBell(shapeVertical, 0.28, 0.12) * (1.0 - shapeArmZone);
-float shapeCalf = fatBell(shapeVertical, 0.11, 0.09) * (1.0 - shapeArmZone);
+float shapeCalf = fatBell(shapeVertical, 0.11, 0.12) * (1.0 - shapeArmZone);
 float shapeFace = fatBell(shapeVertical, 0.84, 0.08) * (1.0 - smoothstep(0.18, 0.56, shapeLateral));
 float shapeHead = smoothstep(0.94, 0.99, shapeVertical);
 float shapeDistribution = shapeChest * chestBias + shapeWaist * waistBias + shapeHip * hipBias + shapeThigh * thighBias + shapeCalf * calfBias + shapeArm * armBias + shapeFace * faceBias;
@@ -205,6 +237,19 @@ float shapeZSurface = clamp(abs(position.z - centerZ) / halfDepth, 0.0, 1.0);
 float shapeFrontDepth = clamp((position.z - centerZ) / halfDepth, 0.0, 1.0);
 float shapeBustProjection = shapeChest * bustAdjustCm * 0.010 * (0.12 + shapeFrontDepth * 0.88);
 float shapeShoulderOffset = shapeShoulder * shoulderAdjustCm * 0.0036 * calculatorShapeMode;
+// Natural weight gain is not a uniform radial scale. Add a small, optional
+// soft-tissue response to the fat shell: a forward lower abdomen, a lower
+// chest volume, and a rear/lower glute volume. This remains a visual trend,
+// because real distribution and tissue movement vary substantially by person.
+float shapeExcessFat = max(bodyFatDelta, 0.0);
+float shapeFrontSurface = smoothstep(0.0, 0.58, shapeFrontDepth);
+float shapeAbdomen = fatBell(shapeVertical, 0.55, 0.125) * (1.0 - shapeArmZone) * shapeFrontSurface;
+float shapeChestLower = fatBell(shapeVertical, 0.70, 0.075) * (1.0 - shapeArmZone * 0.92) * shapeFrontSurface;
+float shapeGlute = fatBell(shapeVertical, 0.42, 0.115) * (1.0 - shapeArmZone) * shapeRearSurface;
+transformed.z += shapeAbdomen * shapeExcessFat * ${abdomenForwardGain};
+transformed.y -= shapeChestLower * shapeExcessFat * ${chestSagGain};
+transformed.z -= shapeGlute * shapeExcessFat * ${gluteProjectionGain};
+transformed.y -= shapeGlute * shapeExcessFat * ${gluteSagGain};
 transformed.x += shapeXDirection * ((shapeWeightX + shapeMeasurementX) * shapeXSurface + shapeShoulderOffset);
 transformed.z += shapeZDirection * (shapeWeightZ + shapeMeasurementZ) * shapeZSurface + shapeBustProjection;`
       : "";
@@ -242,7 +287,7 @@ transformed += normalize(objectNormal) * fatShellDepth * clamp(distribution, 0.0
       "#include <color_fragment>\ndiffuseColor.a *= vFatMask;",
     );
   };
-  material.customProgramCacheKey = () => useShapeShader ? "regional-fat-overlay-shape-v18" : "regional-fat-overlay-v5";
+  material.customProgramCacheKey = () => useShapeShader ? "regional-fat-overlay-shape-v21" : "regional-fat-overlay-v7";
   material.userData.fatUniforms = uniforms;
   return material;
 }
@@ -263,14 +308,14 @@ export function FatTrendOverlay({
   rootPosition?: [number, number, number];
   rootScale?: [number, number, number];
 }) {
-  const fat = getWeightMorphs(profile.heightCm, profile.weightKg).bodyFat;
+  const { baselineFat, visualFat: fat } = getVisualFatState(profile);
   // Keep the body surface readable at every weight. The overlay is a visual
   // fat trend, not a replacement shell: use the same coverage envelope for
   // both models so the female view does not turn into a flat yellow cutout.
-  const normalVisibility = profile.modelType === "female" ? 0.18 : 0.20;
-  const fatGrowth = profile.modelType === "female" ? 0.32 : 0.38;
-  const obesityGrowth = profile.modelType === "female" ? 0.65 : 0.76;
-  const maxCoverage = profile.modelType === "female" ? 0.72 : 0.78;
+  const normalVisibility = profile.modelType === "female" ? 0.11 : 0.12;
+  const fatGrowth = profile.modelType === "female" ? 0.32 : 0.34;
+  const obesityGrowth = profile.modelType === "female" ? 0.30 : 0.34;
+  const maxCoverage = profile.modelType === "female" ? 0.56 : 0.60;
   const opacity = Math.min(maxCoverage, normalVisibility + fat * fatGrowth + Math.max(0, fat - 0.38) * obesityGrowth);
 
   // A duplicate of the actual body surface is used when a GLB is available.
@@ -344,13 +389,9 @@ export function FatTrendOverlay({
         uniforms.fatLevel.value = fat;
         const currentBmi = calculateBMI(profile.heightCm, profile.weightKg);
         const baseBmi = calculateBMI(DEFAULT_PROFILE[profile.modelType].heightCm, DEFAULT_PROFILE[profile.modelType].weightKg);
-        const baseFat = getWeightMorphs(
-          DEFAULT_PROFILE[profile.modelType].heightCm,
-          DEFAULT_PROFILE[profile.modelType].weightKg,
-        ).bodyFat;
-        uniforms.bmiDelta.value = currentBmi - baseBmi;
-        uniforms.bodyFatDelta.value = fat - baseFat;
-        uniforms.fatShellDepth.value = Math.max(0, fat - baseFat) * (profile.modelType === "female" ? 0.045 : 0.022);
+        uniforms.bmiDelta.value = (currentBmi - baseBmi) * VISUAL_BMI_VOLUME_GAIN;
+        uniforms.bodyFatDelta.value = fat - baselineFat;
+        uniforms.fatShellDepth.value = Math.max(0, fat - baselineFat) * (profile.modelType === "female" ? 0.035 : 0.018);
         uniforms.calculatorShapeMode.value = profile.shapeRenderMode === "calculator" ? 1 : 0;
         uniforms.shoulderAdjustCm.value = profile.measurements.shoulderAdjustCm;
         uniforms.bustAdjustCm.value = profile.measurements.bustAdjustCm;
@@ -392,10 +433,10 @@ export function FatTrendOverlay({
         >
           <sphereGeometry args={[1, 24, 16]} />
           <meshBasicMaterial
-            color="#f4ce63"
+            color="#ffad42"
             transparent
             opacity={opacity}
-            depthWrite={false}
+            depthWrite
             side={THREE.DoubleSide}
           />
         </mesh>

@@ -9,7 +9,9 @@ const BodyCanvas = lazy(() => import("../components/BodyCanvas"));
 export function App() {
   const [modelLoading, setModelLoading] = useState(true);
   const [modelLoadProgress, setModelLoadProgress] = useState(0);
-  const [bodyHue, setBodyHue] = useState(120);
+  // A cool model colour gives the warm fat layer an immediately legible
+  // contrast without needing to exaggerate its volume or opacity.
+  const [bodyHue, setBodyHue] = useState(214);
   const modelType = useBodyStore((state) => state.modelType);
   const heightCm = useBodyStore((state) => state.heightCm);
   const weightKg = useBodyStore((state) => state.weightKg);
@@ -71,7 +73,7 @@ export function App() {
           </div>
           <div className="canvas-wrap simulator-preview" aria-label="Interactive 3D body shape visualizer">
             <Suspense fallback={<div className="canvas-loading">Loading 3D body visualizer…</div>}>
-              <BodyCanvas profile={{ modelType, ...previewProfile, viewMode }} showFatLayer={showFatLayer} viewMode={viewMode} onViewModeChange={setViewMode} onLoadingChange={setModelLoading} onLoadingProgress={setModelLoadProgress} backgroundColor="#070707" bodyColor={bodyColor} showGround={false} />
+              <BodyCanvas profile={{ modelType, ...previewProfile, viewMode }} showFatLayer={showFatLayer} viewMode={viewMode} onViewModeChange={setViewMode} onLoadingChange={setModelLoading} onLoadingProgress={setModelLoadProgress} backgroundColor="#111827" bodyColor={bodyColor} showGround={false} />
             </Suspense>
             {modelLoading && (
               <div className="model-loading-overlay" role="status" aria-live="polite">
