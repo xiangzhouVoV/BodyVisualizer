@@ -2,7 +2,12 @@ import { useState } from "react";
 
 import { calculateBMI, getBmiLabel, getWeightMorphs } from "../lib/bodyMath";
 import { useBodyStore } from "../stores/bodyStore";
-import type { ModelType } from "../types/body";
+import {
+  SIMULATOR_CIRCUMFERENCE_RANGES,
+  type CircumferenceAdjustments,
+  type ModelType,
+  type SimulatorCircumferenceRange,
+} from "../types/body";
 
 const CM_PER_INCH = 2.54;
 const KG_PER_POUND = 0.45359237;
@@ -15,6 +20,20 @@ function roundTo(value: number, decimals = 0) {
 function formatFeetAndInches(totalInches: number) {
   const rounded = Math.round(totalInches);
   return `${Math.floor(rounded / 12)} ft ${rounded % 12} in`;
+}
+
+function adjustmentToCircumference(adjustmentCm: number, range: SimulatorCircumferenceRange) {
+  const distance = adjustmentCm >= 0
+    ? range.maxCm - range.restingCm
+    : range.restingCm - range.minCm;
+  return range.restingCm + (adjustmentCm / 15) * distance;
+}
+
+function circumferenceToAdjustment(circumferenceCm: number, range: SimulatorCircumferenceRange) {
+  const distance = circumferenceCm >= range.restingCm
+    ? range.maxCm - range.restingCm
+    : range.restingCm - range.minCm;
+  return Math.max(-15, Math.min(15, ((circumferenceCm - range.restingCm) / distance) * 15));
 }
 
 function RangeControl({
@@ -95,6 +114,30 @@ export function BodyControls() {
   const inchesToCm = (value: number) => roundTo(value * CM_PER_INCH, 1);
   const kilogramToPounds = (value: number) => Math.round(value / KG_PER_POUND);
   const poundsToKilograms = (value: number) => roundTo(value * KG_PER_POUND, 1);
+  const circumferenceRanges = SIMULATOR_CIRCUMFERENCE_RANGES[modelType];
+  const renderCircumferenceControl = (range: SimulatorCircumferenceRange) => {
+    const adjustment = activeMeasurements[range.adjustmentKey];
+    const valueCm = adjustmentToCircumference(adjustment, range);
+    const updateMeasurement = (nextValue: number) => {
+      const circumferenceCm = isImperial ? inchesToCm(nextValue) : nextValue;
+      setMeasurements({
+        [range.adjustmentKey]: circumferenceToAdjustment(circumferenceCm, range),
+      } as Partial<CircumferenceAdjustments>);
+    };
+
+    return (
+      <RangeControl
+        key={range.adjustmentKey}
+        label={range.label}
+        value={isImperial ? cmToInches(valueCm) : Math.round(valueCm)}
+        min={isImperial ? cmToInches(range.minCm) : range.minCm}
+        max={isImperial ? cmToInches(range.maxCm) : range.maxCm}
+        step={isImperial ? 0.1 : 1}
+        unit={measurementUnit}
+        onChange={updateMeasurement}
+      />
+    );
+  };
 
   return (
     <section className="control-card" aria-label="Body shape controls">
@@ -149,17 +192,17 @@ export function BodyControls() {
         onClick={() => setShowMeasurements((open) => !open)}
         aria-expanded={showMeasurements}
       >
-        <span><b>＋</b> Measurement Adjustments</span><small>{showMeasurements ? "Collapse" : "Bust / Waist / Hip / Arms / Legs"}</small>
+        <span><b>＋</b> Circumference Measurements</span><small>{showMeasurements ? "Collapse" : "Bust / Waist / Hip / Arms / Legs"}</small>
       </button>
 
       {showMeasurements && (
         <div className="measurements-panel">
-          <p>Fine-tune local proportions based on {activeLabel.toLowerCase()} height and weight</p>
-          <RangeControl label="Bust" value={isImperial ? cmToInches(activeMeasurements.bustAdjustCm) : activeMeasurements.bustAdjustCm} min={isImperial ? -6 : -15} max={isImperial ? 6 : 15} step={0.1} unit={measurementUnit} signed onChange={(value) => setMeasurements({ bustAdjustCm: isImperial ? inchesToCm(value) : value })} />
-          <RangeControl label="Waist" value={isImperial ? cmToInches(activeMeasurements.waistAdjustCm) : activeMeasurements.waistAdjustCm} min={isImperial ? -6 : -15} max={isImperial ? 6 : 15} step={0.1} unit={measurementUnit} signed onChange={(value) => setMeasurements({ waistAdjustCm: isImperial ? inchesToCm(value) : value })} />
-          <RangeControl label="Hip" value={isImperial ? cmToInches(activeMeasurements.hipAdjustCm) : activeMeasurements.hipAdjustCm} min={isImperial ? -6 : -15} max={isImperial ? 6 : 15} step={0.1} unit={measurementUnit} signed onChange={(value) => setMeasurements({ hipAdjustCm: isImperial ? inchesToCm(value) : value })} />
-          <RangeControl label="Arm" value={isImperial ? cmToInches(activeMeasurements.armAdjustCm) : activeMeasurements.armAdjustCm} min={isImperial ? -6 : -15} max={isImperial ? 6 : 15} step={0.1} unit={measurementUnit} signed onChange={(value) => setMeasurements({ armAdjustCm: isImperial ? inchesToCm(value) : value })} />
-          <RangeControl label="Leg" value={isImperial ? cmToInches(activeMeasurements.legAdjustCm) : activeMeasurements.legAdjustCm} min={isImperial ? -6 : -15} max={isImperial ? 6 : 15} step={0.1} unit={measurementUnit} signed onChange={(value) => setMeasurements({ legAdjustCm: isImperial ? inchesToCm(value) : value })} />
+          <p>Choose a circumference within each range to refine the {activeLabel.toLowerCase()} model.</p>
+          {renderCircumferenceControl(circumferenceRanges.bust)}
+          {renderCircumferenceControl(circumferenceRanges.waist)}
+          {renderCircumferenceControl(circumferenceRanges.hip)}
+          {renderCircumferenceControl(circumferenceRanges.arm)}
+          {renderCircumferenceControl(circumferenceRanges.leg)}
         </div>
       )}
 

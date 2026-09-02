@@ -157,19 +157,19 @@ export function BodyShapeCalculator() {
     setModelType(nextModelType);
     setMeasurements(DEFAULT_BODY_SHAPE_MEASUREMENTS[nextModelType]);
   };
-  const simulatorUrl = "/?reset=1";
+  const simulatorUrl = "/";
 
   return (
     <main className="calculator-page">
       <header className="calculator-topbar">
-        <a className="calculator-brand" href="/?reset=1" aria-label="BodyForm home"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><span>BODY<span>FORM</span></span></a>
+        <a className="calculator-brand" href="/" aria-label="BodyForm home"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><span>BODY<span>FORM</span></span></a>
       </header>
 
       <div className="calculator-layout">
         <aside className="tool-sidebar calculator-sidebar">
           <span className="tool-sidebar-label">EXPLORE</span>
           <nav aria-label="Tools">
-            <a href="/?reset=1"><span aria-hidden="true">◎</span>3D Body Simulator</a>
+            <a href="/"><span aria-hidden="true">◎</span>3D Body Simulator</a>
             <a className="current" href="/body-shape-calculator/"><span aria-hidden="true">◇</span>Body Shape Calculator</a>
           </nav>
           <div className="tool-sidebar-section">
@@ -189,7 +189,7 @@ export function BodyShapeCalculator() {
           <div className="canvas-wrap calculator-preview" aria-label="Interactive 3D body shape preview">
             <div className="calculator-result"><span>YOUR BODY SHAPE</span><strong>{resultCopy.label}</strong></div>
             <Suspense fallback={<div className="calculator-canvas-loading">Preparing 3D preview…</div>}>
-              <BodyCanvas profile={profile} showFatLayer={false} viewMode={viewMode} onViewModeChange={setViewMode} onLoadingChange={setModelLoading} backgroundColor="#070707" bodyColor={bodyColor} showGround={false} />
+              <BodyCanvas profile={profile} modelSurface="calculator" showFatLayer={false} viewMode={viewMode} onViewModeChange={setViewMode} onLoadingChange={setModelLoading} backgroundColor="#070707" bodyColor={bodyColor} showGround={false} />
             </Suspense>
             {modelLoading && <div className="calculator-model-loading">Loading model…</div>}
             <div className="calculator-view-buttons" aria-label="View controls">{(["front", "left", "right", "back"] as const).map((view) => <button key={view} type="button" className={viewMode === view ? "active" : ""} onClick={() => setViewMode(view)}>{view}</button>)}</div>

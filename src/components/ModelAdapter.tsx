@@ -13,22 +13,26 @@ import {
   captureBaseModelTransform,
   MODEL_ASSET_PATHS,
 } from "../lib/glbAdapter";
-import type { BodyProfile, ModelType } from "../types/body";
+import type { BodyProfile, ModelSurface, ModelType } from "../types/body";
 import { FatTrendOverlay } from "./FatTrendOverlay";
 
-function useGlbAsset(modelType: ModelType) {
-  const cache = useRef<Partial<Record<ModelType, THREE.Object3D>>>({});
+function useGlbAsset(modelType: ModelType, modelSurface: ModelSurface) {
+  const cache = useRef<Record<string, THREE.Object3D>>({});
   const [asset, setAsset] = useState<{ modelType: ModelType; scene: THREE.Object3D } | null>(null);
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
-    const path = MODEL_ASSET_PATHS[modelType];
+    const assetKey = `${modelSurface}:${modelType}`;
+    // A distinct URL/cache key makes the two product surfaces own separate
+    // source scenes. Their cloned materials, geometry, shaders, and later
+    // model changes can therefore never be reused across the other surface.
+    const path = `${MODEL_ASSET_PATHS[modelType]}?surface=${modelSurface}`;
     setAsset(null);
     setLoading(true);
     setProgress(0);
-    const cached = cache.current[modelType];
+    const cached = cache.current[assetKey];
     if (cached) {
       setAsset({ modelType, scene: cached });
       setLoading(false);
@@ -53,7 +57,7 @@ function useGlbAsset(modelType: ModelType) {
     loader.load(
       path,
       (gltf) => {
-        cache.current[modelType] = gltf.scene;
+        cache.current[assetKey] = gltf.scene;
         if (!controller.signal.aborted) {
           setAsset({ modelType, scene: gltf.scene });
           setLoading(false);
@@ -69,7 +73,7 @@ function useGlbAsset(modelType: ModelType) {
     return () => {
       controller.abort();
     };
-  }, [modelType]);
+  }, [modelSurface, modelType]);
 
   return { asset, loading, progress };
 }
@@ -303,8 +307,8 @@ function RiggedGlbModel({ source, profile, showFatLayer, bodyColor = "#a96850", 
  * Drop correctly named GLBs into public/models to activate the rigged path;
  * otherwise the existing procedural mannequin stays visible.
  */
-export function ModelAdapter({ profile, showFatLayer, bodyColor, onLoadingChange, onLoadingProgress }: { profile: BodyProfile; showFatLayer: boolean; bodyColor?: THREE.ColorRepresentation; onLoadingChange?: (loading: boolean) => void; onLoadingProgress?: (progress: number) => void }) {
-  const { asset, loading, progress } = useGlbAsset(profile.modelType);
+export function ModelAdapter({ profile, modelSurface, showFatLayer, bodyColor, onLoadingChange, onLoadingProgress }: { profile: BodyProfile; modelSurface: ModelSurface; showFatLayer: boolean; bodyColor?: THREE.ColorRepresentation; onLoadingChange?: (loading: boolean) => void; onLoadingProgress?: (progress: number) => void }) {
+  const { asset, loading, progress } = useGlbAsset(profile.modelType, modelSurface);
   useEffect(() => onLoadingChange?.(loading), [loading, onLoadingChange]);
   useEffect(() => onLoadingProgress?.(progress), [onLoadingProgress, progress]);
   // Do not flash the blocky procedural mannequin while the production GLB is
@@ -313,9 +317,12 @@ export function ModelAdapter({ profile, showFatLayer, bodyColor, onLoadingChange
 
   // While an uncached model is loading, retain the last complete GLB. Its own
   // defaults avoid a brief female/male scale mismatch before the new asset wins.
-  const displayProfile = asset.modelType === profile.modelType
-    ? profile
-    : { ...profile, modelType: asset.modelType };
+  const displayProfile = {
+    ...(asset.modelType === profile.modelType ? profile : { ...profile, modelType: asset.modelType }),
+    // Do not let a profile built by one page select the other page's model
+    // deformation behavior, even when both are mounted in the same session.
+    shapeRenderMode: modelSurface,
+  };
 
   return <RiggedGlbModel source={asset.scene} profile={displayProfile} showFatLayer={showFatLayer} bodyColor={bodyColor} tintDetails={Boolean(bodyColor)} />;
 }

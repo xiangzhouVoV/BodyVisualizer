@@ -1,6 +1,11 @@
 import * as THREE from "three";
 
 import { calculateBMI, clamp, DEFAULT_PROFILE, getWeightMorphs } from "./bodyMath";
+import {
+  getCalculatorCircumferenceResponse,
+  getCircumferenceVertexShader,
+  getSimulatorCircumferenceResponse,
+} from "./circumferenceDeformation";
 import type { BodyProfile, ModelType } from "../types/body";
 
 export const MODEL_ASSET_PATHS: Record<ModelType, string> = {
@@ -118,7 +123,6 @@ function getRegionalShapeUniforms(
     halfDepth: { value: Math.max((bounds.max.z - bounds.min.z) / 2, 0.001) },
     bmiDelta: { value: bmiDelta },
     bodyFatDelta: { value: bodyFatDelta },
-    calculatorShapeMode: { value: profile.shapeRenderMode === "calculator" ? 1 : 0 },
     shoulderAdjustCm: { value: profile.measurements.shoulderAdjustCm },
     bustAdjustCm: { value: profile.measurements.bustAdjustCm },
     waistAdjustCm: { value: profile.measurements.waistAdjustCm },
@@ -141,6 +145,8 @@ function applyRegionalShaderShape(
   bmiDelta: number,
   bodyFatDelta: number,
 ) {
+  const deformationMode = profile.shapeRenderMode === "calculator" ? "calculator" : "simulator";
+  const circumferenceVertexShader = getCircumferenceVertexShader(deformationMode);
   // The female sculpt already has a broad hip/chest silhouette. Keep the
   // weight-driven shell subtle so high weights do not make the whole figure
   // balloon beyond the intended body proportions.
@@ -163,7 +169,6 @@ uniform float halfWidth;
 uniform float halfDepth;
 uniform float bmiDelta;
 uniform float bodyFatDelta;
-uniform float calculatorShapeMode;
 uniform float shoulderAdjustCm;
 uniform float bustAdjustCm;
 uniform float waistAdjustCm;
@@ -200,56 +205,15 @@ float shoulderVertical = regionalBell(relativeY, 0.78, 0.048);
 float shoulderLateral = smoothstep(0.18, 0.46, horizontalDistance) * (1.0 - smoothstep(0.56, 0.66, horizontalDistance));
 float shoulder = shoulderVertical * shoulderLateral;
 float chest = regionalBell(relativeY, 0.74, 0.09) * (1.0 - armZone * 0.90);
-// Waist is lower on the front (the lower abdomen) than on the back (the
-// lumbar waistline). Separating the bands keeps a waist edit off the glutes.
 float depthOffset = (position.z - centerZ) / halfDepth;
 float rearSurface = smoothstep(0.0, 0.25, -depthOffset);
-// The longer, low-amplitude lower fade blends the waist into the upper hip
-// silhouette without actually reshaping the hip or glute volume.
-float calculatorWaistLateralBand = regionalBell(relativeY, 0.60, 0.075)
-  * smoothstep(0.52, 0.585, relativeY)
-  * (1.0 - smoothstep(0.68, 0.715, relativeY));
-float calculatorWaistRearBand = regionalBell(relativeY, 0.665, 0.045)
-  * smoothstep(0.62, 0.64, relativeY)
-  * (1.0 - smoothstep(0.71, 0.73, relativeY));
-float simulatorWaist = regionalBell(relativeY, 0.56, 0.10) * (1.0 - armZone);
-float calculatorWaistLateral = calculatorWaistLateralBand * waistTorsoMask;
-float calculatorWaistDepth = mix(calculatorWaistLateralBand, calculatorWaistRearBand, rearSurface) * waistTorsoMask;
-float waistLateral = mix(simulatorWaist, calculatorWaistLateral, calculatorShapeMode);
-float waistDepth = mix(simulatorWaist, calculatorWaistDepth, calculatorShapeMode);
-float waist = max(waistLateral, waistDepth);
-// Calculator Hip uses a broad pelvis band plus a rounded rear glute band.
-// The bands overlap into the upper thigh, avoiding a single-point projection.
-float simulatorHip = regionalBell(relativeY, 0.43, 0.11) * (1.0 - armZone);
-float calculatorHipLateralBand = regionalBell(relativeY, 0.43, 0.125)
-  * smoothstep(0.27, 0.33, relativeY)
-  * (1.0 - smoothstep(0.54, 0.60, relativeY));
-float calculatorHipRearBand = regionalBell(relativeY, 0.445, 0.115)
-  * smoothstep(0.27, 0.33, relativeY)
-  * (1.0 - smoothstep(0.56, 0.62, relativeY));
-float calculatorHipLateral = calculatorHipLateralBand * (1.0 - armZone);
-float calculatorHipDepth = mix(calculatorHipLateralBand, calculatorHipRearBand, rearSurface) * (1.0 - armZone);
-float hipLateral = mix(simulatorHip, calculatorHipLateral, calculatorShapeMode);
-float hipDepth = mix(simulatorHip, calculatorHipDepth, calculatorShapeMode);
-float hip = max(hipLateral, hipDepth);
+${circumferenceVertexShader}
 float thigh = regionalBell(relativeY, 0.28, 0.12) * (1.0 - armZone);
 float calf = regionalBell(relativeY, 0.11, 0.09) * (1.0 - armZone);
 float headMask = smoothstep(0.86, 0.96, relativeY);
 float distribution = chest * chestBias + waist * waistBias + hip * hipBias + thigh * thighBias + calf * calfBias + arm * armBias;
 float fatEligible = max(max(max(chest, waist), max(hip, thigh)), max(calf, arm)) * (1.0 - headMask * 0.97);
 float bodyMask = clamp(fatEligible * (0.32 + distribution * 0.48), 0.0, 0.9);
-// The Simulator preserves its original Waist response. Calculator Waist is
-// an elliptical lower-abdomen waist. The rear response is gentler and lifted
-// to the lumbar line, avoiding an artificial protrusion on the glutes.
-float waistLateralGain = mix(0.010, 0.0090, calculatorShapeMode);
-float calculatorDepthGain = mix(0.0068, 0.0035, rearSurface);
-float waistDepthGain = mix(0.002, calculatorDepthGain, calculatorShapeMode);
-// Hip circumference is shared around the whole pelvis: a stronger lateral
-// response makes the front silhouette reflect wide hips, while front/back
-// depth stays close and moderate instead of becoming a rear-only bulge.
-float hipLateralGain = mix(0.007, 0.0110, calculatorShapeMode);
-float calculatorHipDepthGain = mix(0.0084, 0.0088, rearSurface);
-float hipDepthGain = mix(0.007, calculatorHipDepthGain, calculatorShapeMode);
 float measurementX = chest * bustAdjustCm * 0.002 + waistLateral * waistAdjustCm * waistLateralGain + hipLateral * hipAdjustCm * hipLateralGain + arm * armAdjustCm * 0.0065 + (thigh + calf * 0.6) * legAdjustCm * 0.0065;
 float measurementZ = chest * bustAdjustCm * 0.0012 + waistDepth * waistAdjustCm * waistDepthGain + hipDepth * hipAdjustCm * hipDepthGain + arm * armAdjustCm * 0.006 + (thigh + calf * 0.6) * legAdjustCm * 0.006;
 float weightX = (bmiDelta * 0.002 * bodyMask + bodyFatDelta * fatEligible * (0.018 + distribution * 0.10)) * ${weightShapeGain};
@@ -260,12 +224,11 @@ float xSurface = clamp(horizontalDistance, 0.0, 1.0);
 float zSurface = clamp(abs(position.z - centerZ) / halfDepth, 0.0, 1.0);
 float frontDepth = clamp((position.z - centerZ) / halfDepth, 0.0, 1.0);
 float bustProjection = chest * bustAdjustCm * 0.010 * (0.12 + frontDepth * 0.88);
-float shoulderOffset = shoulder * shoulderAdjustCm * 0.0036 * calculatorShapeMode;
 transformed.x += xDirection * ((weightX + measurementX) * xSurface + shoulderOffset);
 transformed.z += zDirection * (weightZ + measurementZ) * zSurface + bustProjection;`,
         );
       };
-      material.customProgramCacheKey = () => "regional-static-shape-v13";
+      material.customProgramCacheKey = () => `regional-static-shape-${deformationMode}-v14`;
       material.userData.regionalShapeUniforms = uniforms;
       material.needsUpdate = true;
     }
@@ -273,7 +236,6 @@ transformed.z += zDirection * (weightZ + measurementZ) * zSurface + bustProjecti
     Object.entries(uniforms).forEach(([name, uniform]) => {
       if (name === "bmiDelta") uniform.value = bmiDelta;
       else if (name === "bodyFatDelta") uniform.value = bodyFatDelta;
-      else if (name === "calculatorShapeMode") uniform.value = profile.shapeRenderMode === "calculator" ? 1 : 0;
       else if (name === "shoulderAdjustCm") uniform.value = profile.measurements.shoulderAdjustCm;
       else if (name === "bustAdjustCm") uniform.value = profile.measurements.bustAdjustCm;
       else if (name === "waistAdjustCm") uniform.value = profile.measurements.waistAdjustCm;
@@ -306,7 +268,9 @@ function applyLocalStaticShape(
   const source = base.positions;
   const target = position.array as Float32Array;
   const { shoulderAdjustCm, bustAdjustCm, waistAdjustCm, hipAdjustCm, armAdjustCm, legAdjustCm } = profile.measurements;
-  const calculatorShapeMode = profile.shapeRenderMode === "calculator";
+  const getCircumferenceResponse = profile.shapeRenderMode === "calculator"
+    ? getCalculatorCircumferenceResponse
+    : getSimulatorCircumferenceResponse;
   const regionalBias = getRegionalFatBias(profile.modelType);
   const weightShapeGain = profile.modelType === "female" ? 0.80 : 1.0;
 
@@ -328,30 +292,14 @@ function applyLocalStaticShape(
     const chest = bell(relativeY, 0.74, 0.09) * (1 - armZone * 0.9);
     const depthOffset = (z - centerZ) / halfDepth;
     const rearSurface = smoothstep(0, 0.25, -depthOffset);
-    const calculatorWaistLateralBand = bell(relativeY, 0.60, 0.075)
-      * smoothstep(0.52, 0.585, relativeY)
-      * (1 - smoothstep(0.68, 0.715, relativeY));
-    const calculatorWaistRearBand = bell(relativeY, 0.665, 0.045)
-      * smoothstep(0.62, 0.64, relativeY)
-      * (1 - smoothstep(0.71, 0.73, relativeY));
-    const simulatorWaist = bell(relativeY, 0.56, 0.10) * (1 - armZone);
-    const calculatorWaistLateral = calculatorWaistLateralBand * waistTorsoMask;
-    const calculatorWaistDepth = (calculatorWaistLateralBand * (1 - rearSurface) + calculatorWaistRearBand * rearSurface) * waistTorsoMask;
-    const waistLateral = calculatorShapeMode ? calculatorWaistLateral : simulatorWaist;
-    const waistDepth = calculatorShapeMode ? calculatorWaistDepth : simulatorWaist;
-    const waist = Math.max(waistLateral, waistDepth);
-    const simulatorHip = bell(relativeY, 0.43, 0.11) * (1 - armZone);
-    const calculatorHipLateralBand = bell(relativeY, 0.43, 0.125)
-      * smoothstep(0.27, 0.33, relativeY)
-      * (1 - smoothstep(0.54, 0.60, relativeY));
-    const calculatorHipRearBand = bell(relativeY, 0.445, 0.115)
-      * smoothstep(0.27, 0.33, relativeY)
-      * (1 - smoothstep(0.56, 0.62, relativeY));
-    const calculatorHipLateral = calculatorHipLateralBand * (1 - armZone);
-    const calculatorHipDepth = (calculatorHipLateralBand * (1 - rearSurface) + calculatorHipRearBand * rearSurface) * (1 - armZone);
-    const hipLateral = calculatorShapeMode ? calculatorHipLateral : simulatorHip;
-    const hipDepth = calculatorShapeMode ? calculatorHipDepth : simulatorHip;
-    const hip = Math.max(hipLateral, hipDepth);
+    const circumference = getCircumferenceResponse({
+      relativeY,
+      horizontalDistance,
+      rearSurface,
+      armZone,
+      waistTorsoMask,
+      shoulder,
+    });
     const thigh = bell(relativeY, 0.28, 0.12) * (1 - armZone);
     const calf = bell(relativeY, 0.11, 0.09) * (1 - armZone);
     // Keep the skull and neck structurally stable. The remaining areas blend
@@ -360,30 +308,23 @@ function applyLocalStaticShape(
     const headMask = smoothstep(0.86, 0.96, relativeY);
     const fatDistribution =
       chest * regionalBias.chest +
-      waist * regionalBias.waist +
-      hip * regionalBias.hip +
+      circumference.waist * regionalBias.waist +
+      circumference.hip * regionalBias.hip +
       thigh * regionalBias.thigh +
       calf * regionalBias.calf +
       armMask * regionalBias.arm;
-    const fatEligible = Math.max(chest, waist, hip, thigh, calf, armMask) * (1 - headMask * 0.97);
+    const fatEligible = Math.max(chest, circumference.waist, circumference.hip, thigh, calf, armMask) * (1 - headMask * 0.97);
     const bodyMask = clamp(fatEligible * (0.32 + fatDistribution * 0.48), 0, 0.9);
-    // Circumference controls intentionally use different directional profiles:
-    // bust projects mostly toward the viewer, waist spreads side-to-side,
-    // hips grow in both axes, and limbs thicken radially.
-    const waistLateralGain = calculatorShapeMode ? 0.0090 : 0.010;
-    const waistDepthGain = calculatorShapeMode ? 0.0068 - 0.0033 * rearSurface : 0.002;
-    const hipLateralGain = calculatorShapeMode ? 0.0110 : 0.007;
-    const hipDepthGain = calculatorShapeMode ? 0.0084 + 0.0004 * rearSurface : 0.007;
     const measurementX =
       chest * bustAdjustCm * 0.002 +
-      waistLateral * waistAdjustCm * waistLateralGain +
-      hipLateral * hipAdjustCm * hipLateralGain +
+      circumference.waistLateral * waistAdjustCm * circumference.waistLateralGain +
+      circumference.hipLateral * hipAdjustCm * circumference.hipLateralGain +
       armMask * armAdjustCm * 0.0065 +
       (thigh + calf * 0.6) * legAdjustCm * 0.0065;
     const measurementZ =
       chest * bustAdjustCm * 0.0012 +
-      waistDepth * waistAdjustCm * waistDepthGain +
-      hipDepth * hipAdjustCm * hipDepthGain +
+      circumference.waistDepth * waistAdjustCm * circumference.waistDepthGain +
+      circumference.hipDepth * hipAdjustCm * circumference.hipDepthGain +
       armMask * armAdjustCm * 0.006 +
       (thigh + calf * 0.6) * legAdjustCm * 0.006;
     // The BMI term provides a gentle overall proportion change. The body-fat
@@ -401,7 +342,7 @@ function applyLocalStaticShape(
     // Positive bust adjustment adds volume to the front chest surface instead
     // of equally enlarging the back. Negative values pull that surface back.
     const bustProjection = chest * bustAdjustCm * 0.010 * (0.12 + frontDepth * 0.88);
-    const shoulderOffset = calculatorShapeMode ? shoulder * shoulderAdjustCm * 0.0036 : 0;
+    const shoulderOffset = shoulderAdjustCm * circumference.shoulderOffsetGain;
 
     target[index] = x + xDirection * ((weightX + measurementX) * xSurface + shoulderOffset);
     target[index + 1] = y; // Weight and circumferences never alter height.
