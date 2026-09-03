@@ -16,6 +16,11 @@ import {
 import type { BodyProfile, ModelSurface, ModelType } from "../types/body";
 import { FatTrendOverlay } from "./FatTrendOverlay";
 
+// Comparison mode renders two independently deformable clones, but they must
+// never trigger two concurrent downloads of the same source GLB.
+const sharedSourceScenes = new Map<string, THREE.Object3D>();
+const pendingSourceLoads = new Map<string, Promise<THREE.Object3D>>();
+
 function useGlbAsset(modelType: ModelType, modelSurface: ModelSurface) {
   const cache = useRef<Record<string, THREE.Object3D>>({});
   const [asset, setAsset] = useState<{ modelType: ModelType; scene: THREE.Object3D } | null>(null);
@@ -23,7 +28,7 @@ function useGlbAsset(modelType: ModelType, modelSurface: ModelSurface) {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    const controller = new AbortController();
+    let active = true;
     const assetKey = `${modelSurface}:${modelType}`;
     // A distinct URL/cache key makes the two product surfaces own separate
     // source scenes. Their cloned materials, geometry, shaders, and later
@@ -37,42 +42,60 @@ function useGlbAsset(modelType: ModelType, modelSurface: ModelSurface) {
       setAsset({ modelType, scene: cached });
       setLoading(false);
       setProgress(100);
-      return () => controller.abort();
+      return () => { active = false; };
     }
 
-    const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-    const updateProgress = (event: ProgressEvent<EventTarget>) => {
-      if (controller.signal.aborted) return;
+    const shared = sharedSourceScenes.get(assetKey);
+    if (shared) {
+      cache.current[assetKey] = shared;
+      setAsset({ modelType, scene: shared });
+      setLoading(false);
+      setProgress(100);
+      return () => { active = false; };
+    }
 
-      // Some CDNs omit Content-Length. In that case, keep the progress bar
-      // moving without claiming a false exact percentage.
-      const percentage = event.lengthComputable && event.total > 0
-        ? Math.round((event.loaded / event.total) * 100)
-        : Math.min(90, Math.max(8, Math.round(event.loaded / 60_000)));
-      setProgress(percentage);
-    };
+    let sourceLoad = pendingSourceLoads.get(assetKey);
+    if (!sourceLoad) {
+      const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+      sourceLoad = new Promise<THREE.Object3D>((resolve, reject) => {
+        // Load the production asset directly. The progress overlay gives users
+        // clear feedback, so a visibly different low-poly placeholder is avoided.
+        loader.load(
+          path,
+          (gltf) => {
+            sharedSourceScenes.set(assetKey, gltf.scene);
+            pendingSourceLoads.delete(assetKey);
+            resolve(gltf.scene);
+          },
+          (event: ProgressEvent<EventTarget>) => {
+            if (!active) return;
+            // Some CDNs omit Content-Length. In that case, keep the progress
+            // bar moving without claiming a false exact percentage.
+            const percentage = event.lengthComputable && event.total > 0
+              ? Math.round((event.loaded / event.total) * 100)
+              : Math.min(90, Math.max(8, Math.round(event.loaded / 60_000)));
+            setProgress(percentage);
+          },
+          (error) => {
+            pendingSourceLoads.delete(assetKey);
+            reject(error);
+          },
+        );
+      });
+      pendingSourceLoads.set(assetKey, sourceLoad);
+    }
 
-    // Load the production asset directly. The progress overlay gives users
-    // clear feedback, so a visibly different low-poly placeholder is avoided.
-    loader.load(
-      path,
-      (gltf) => {
-        cache.current[assetKey] = gltf.scene;
-        if (!controller.signal.aborted) {
-          setAsset({ modelType, scene: gltf.scene });
-          setLoading(false);
-          setProgress(100);
-        }
-      },
-      updateProgress,
-      () => {
-        if (!controller.signal.aborted) setLoading(false);
-      },
-    );
+    sourceLoad.then((scene) => {
+      cache.current[assetKey] = scene;
+      if (!active) return;
+      setAsset({ modelType, scene });
+      setLoading(false);
+      setProgress(100);
+    }).catch(() => {
+      if (active) setLoading(false);
+    });
 
-    return () => {
-      controller.abort();
-    };
+    return () => { active = false; };
   }, [modelSurface, modelType]);
 
   return { asset, loading, progress };

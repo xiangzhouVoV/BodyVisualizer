@@ -13,7 +13,7 @@ const CAMERA_VIEWS: Record<Exclude<ViewMode, "free">, [number, number, number]> 
   right: [1, 0, 0],
 };
 
-function CameraController({ heightCm, viewMode, onViewModeChange }: { heightCm: number; viewMode: ViewMode; onViewModeChange: (view: ViewMode) => void }) {
+function CameraController({ heightCm, viewMode, onViewModeChange, comparing = false }: { heightCm: number; viewMode: ViewMode; onViewModeChange: (view: ViewMode) => void; comparing?: boolean }) {
   const { camera, gl } = useThree();
   const controls = useRef<OrbitControlsImpl | null>(null);
   // Models are grounded at y=0. Target the height midpoint so the camera
@@ -21,7 +21,9 @@ function CameraController({ heightCm, viewMode, onViewModeChange }: { heightCm: 
   const modelHeight = Math.max(1.4, heightCm / 100);
   const target = useMemo(() => new THREE.Vector3(0, modelHeight * 0.5, 0), [modelHeight]);
   const position = useMemo(() => new THREE.Vector3(), []);
-  const distance = 3.1 * (modelHeight / 1.75);
+  // Widen the camera just enough to keep both silhouettes legible when the
+  // comparison mode places Current and Target side by side.
+  const distance = (comparing ? 4.2 : 3.1) * (modelHeight / 1.75);
 
   useEffect(() => {
     const orbit = new OrbitControlsImpl(camera, gl.domElement);
@@ -63,6 +65,7 @@ export function BodyCanvas({
   backgroundColor = "#efeee9",
   bodyColor,
   showGround = true,
+  comparisonProfile,
   modelSurface = "simulator",
 }: {
   profile: BodyProfile;
@@ -74,9 +77,12 @@ export function BodyCanvas({
   backgroundColor?: THREE.ColorRepresentation;
   bodyColor?: THREE.ColorRepresentation;
   showGround?: boolean;
+  /** Renders a second, synchronized silhouette beside the primary profile. */
+  comparisonProfile?: BodyProfile;
   /** Keeps Simulator and Calculator model instances and deformation modes isolated. */
   modelSurface?: ModelSurface;
 }) {
+  const comparing = Boolean(comparisonProfile);
   return (
     <Canvas
       shadows
@@ -89,12 +95,23 @@ export function BodyCanvas({
       <hemisphereLight args={["#fff8ed", "#9aa5b1", 1.1]} />
       <directionalLight position={[3, 5, 4]} intensity={2.4} castShadow shadow-mapSize={[1024, 1024]} />
       <directionalLight position={[-4, 2, -2]} intensity={0.65} />
-      <ModelAdapter profile={profile} modelSurface={modelSurface} showFatLayer={showFatLayer} bodyColor={bodyColor} onLoadingChange={onLoadingChange} onLoadingProgress={onLoadingProgress} />
+      {comparing ? (
+        <>
+          <group position={[-0.62, 0, 0]}>
+            <ModelAdapter profile={profile} modelSurface={modelSurface} showFatLayer={showFatLayer} bodyColor={bodyColor} onLoadingChange={onLoadingChange} onLoadingProgress={onLoadingProgress} />
+          </group>
+          <group position={[0.62, 0, 0]}>
+            <ModelAdapter profile={comparisonProfile!} modelSurface={modelSurface} showFatLayer={showFatLayer} bodyColor={bodyColor} />
+          </group>
+        </>
+      ) : (
+        <ModelAdapter profile={profile} modelSurface={modelSurface} showFatLayer={showFatLayer} bodyColor={bodyColor} onLoadingChange={onLoadingChange} onLoadingProgress={onLoadingProgress} />
+      )}
       {showGround && <mesh position={[0, -0.01, 0]} receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[4, 64]} />
         <shadowMaterial transparent opacity={0.22} />
       </mesh>}
-      <CameraController heightCm={profile.heightCm} viewMode={viewMode} onViewModeChange={onViewModeChange} />
+      <CameraController heightCm={Math.max(profile.heightCm, comparisonProfile?.heightCm ?? 0)} viewMode={viewMode} onViewModeChange={onViewModeChange} comparing={comparing} />
     </Canvas>
   );
 }

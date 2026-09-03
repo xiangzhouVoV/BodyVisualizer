@@ -2,6 +2,7 @@ import { lazy, Suspense, useLayoutEffect, useState, type CSSProperties } from "r
 
 import { BodyControls } from "../components/BodyControls";
 import { ViewControls } from "../components/ViewControls";
+import { calculateBMI } from "../lib/bodyMath";
 import { useBodyStore } from "../stores/bodyStore";
 
 const BodyCanvas = lazy(() => import("../components/BodyCanvas"));
@@ -19,7 +20,6 @@ export function App() {
   const targetHeightCm = useBodyStore((state) => state.targetHeightCm);
   const targetWeightKg = useBodyStore((state) => state.targetWeightKg);
   const targetMeasurements = useBodyStore((state) => state.targetMeasurements);
-  const activeProfile = useBodyStore((state) => state.activeProfile);
   const showFatLayer = useBodyStore((state) => state.showFatLayer);
   const viewMode = useBodyStore((state) => state.viewMode);
   const setViewMode = useBodyStore((state) => state.setViewMode);
@@ -31,9 +31,10 @@ export function App() {
     reset();
     window.history.replaceState(null, "", window.location.pathname);
   }, [reset]);
-  const previewProfile = activeProfile === "current"
-    ? { heightCm, weightKg, measurements }
-    : { heightCm: targetHeightCm, weightKg: targetWeightKg, measurements: targetMeasurements };
+  const currentProfile = { heightCm, weightKg, measurements };
+  const targetProfile = { heightCm: targetHeightCm, weightKg: targetWeightKg, measurements: targetMeasurements };
+  const weightDelta = targetWeightKg - weightKg;
+  const bmiDelta = calculateBMI(targetHeightCm, targetWeightKg) - calculateBMI(heightCm, weightKg);
   const bodyColor = `hsl(${bodyHue}, 78%, 64%)`;
 
   return (
@@ -68,12 +69,23 @@ export function App() {
       <div className="workspace">
         <section className="stage-card" aria-label="3D body shape preview">
           <div className="stage-heading">
-            <div><span className="section-kicker">3D PREVIEW · {activeProfile === "current" ? "CURRENT" : "TARGET"}</span><p className="stage-title">Your Body, <em>Worthy of Care</em></p></div>
+            <div><span className="section-kicker">3D COMPARE · CURRENT → TARGET</span><p className="stage-title">See Change, <em>With Context</em></p></div>
             <span className="asset-status"><i />PARAMETRIC MODEL</span>
           </div>
           <div className="canvas-wrap simulator-preview" aria-label="Interactive 3D body shape visualizer">
             <Suspense fallback={<div className="canvas-loading">Loading 3D body visualizer…</div>}>
-              <BodyCanvas profile={{ modelType, ...previewProfile, viewMode }} showFatLayer={showFatLayer} viewMode={viewMode} onViewModeChange={setViewMode} onLoadingChange={setModelLoading} onLoadingProgress={setModelLoadProgress} backgroundColor="#111827" bodyColor={bodyColor} showGround={false} />
+              <BodyCanvas
+                profile={{ modelType, ...currentProfile, viewMode }}
+                comparisonProfile={{ modelType, ...targetProfile, viewMode }}
+                showFatLayer={showFatLayer}
+                viewMode={viewMode}
+                onViewModeChange={setViewMode}
+                onLoadingChange={setModelLoading}
+                onLoadingProgress={setModelLoadProgress}
+                backgroundColor="#111827"
+                bodyColor={bodyColor}
+                showGround={false}
+              />
             </Suspense>
             {modelLoading && (
               <div className="model-loading-overlay" role="status" aria-live="polite">
@@ -85,6 +97,10 @@ export function App() {
                 </div>
               </div>
             )}
+            <div className="comparison-model-labels" aria-hidden="true">
+              <span><i />Current</span>
+              <span><i />Target</span>
+            </div>
             <span className="sr-only">Interactive 3D body model. Enter height, weight, and optional measurements, then rotate and zoom to explore the body shape.</span>
             <div className="canvas-hint">Drag to rotate&nbsp; · &nbsp;Scroll to zoom</div>
             <label className="simulator-color-control" htmlFor="simulator-body-color">
@@ -92,7 +108,13 @@ export function App() {
               <input id="simulator-body-color" type="range" min="0" max="360" value={bodyHue} onChange={(event) => setBodyHue(Number(event.target.value))} aria-label="Body color" style={{ "--model-color": bodyColor } as CSSProperties} />
             </label>
           </div>
-          <div className="stage-footer"><ViewControls /></div>
+          <div className="stage-footer">
+            <ViewControls />
+            <div className="comparison-summary" aria-label="Current and target change summary">
+              <span><b>{weightDelta > 0 ? "+" : ""}{weightDelta.toFixed(1)} kg</b> target weight</span>
+              <span><b>{bmiDelta > 0 ? "+" : ""}{bmiDelta.toFixed(1)}</b> BMI change</span>
+            </div>
+          </div>
         </section>
 
         <aside className="side-panel"><BodyControls /></aside>
