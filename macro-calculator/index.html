@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f5f4f0" />
+    <meta name="description" content="Calculate your daily protein, carbs and fat ranges with our free macro calculator. Use your weight, gender and weekly training level for a simple daily plan." />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://body-simulator.com/macro-calculator/" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon.png" />
+    <title>How Much Protein Per Day? Free Macro Calculator</title>
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How much protein do I need per day?","acceptedAnswer":{"@type":"Answer","text":"Most adults need 1.6 to 2.2 grams of protein per kilogram of body weight, depending on your activity level and goal. Our calculator uses your body weight and goal to give you a personalized number."}},{"@type":"Question","name":"How many carbs should I eat per day?","acceptedAnswer":{"@type":"Answer","text":"Carb intake depends on your remaining calories after protein and fat are accounted for. For most people, carbs make up 40 to 60 percent of daily calories. Enter your stats above and our calculator does the math for you."}},{"@type":"Question","name":"What is a macro calculator?","acceptedAnswer":{"@type":"Answer","text":"A macro calculator estimates how many grams of protein, carbohydrates and fat you should eat each day, based on your body stats, activity level and fitness goal. It turns your calorie target into an actionable eating plan."}},{"@type":"Question","name":"Is tracking macros better than counting calories?","acceptedAnswer":{"@type":"Answer","text":"Counting calories helps you control how much you eat. Tracking macros also controls what you eat. For body composition goals like building muscle or losing fat while keeping muscle, macros give you more precise control."}},{"@type":"Question","name":"Do I need to track macros every day?","acceptedAnswer":{"@type":"Answer","text":"Not necessarily. Once you use our calculator a few times and learn what a typical day of eating looks like for your goals, you can estimate without tracking every gram. Use it as a starting point and check back when your weight or goals change."}}]}</script>
+    <link rel="stylesheet" href="/macro-calculator/macro-calc.css" />
+  </head>
+  <body>
+    <main class="macro-page">
+      <header class="macro-topbar">
+        <a class="macro-brand" href="/" aria-label="BodyForm home"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>BODY<span>FORM</span></span></a>
+        <a class="macro-home-link" href="/">← Body Simulator</a>
+      </header>
+
+      <div class="macro-layout">
+        <aside class="macro-sidebar" aria-label="Tools">
+          <span>EXPLORE</span>
+          <nav>
+            <a href="/"><b>◎</b>3D Body Simulator</a>
+            <a href="/body-shape-calculator/"><b>◇</b>Body Shape Calculator</a>
+            <a class="current" href="/macro-calculator/"><b>◒</b>Macro Calculator</a>
+          </nav>
+          <div class="macro-sidebar-resources"><span>RESOURCES</span><nav><a href="/blog/"><b>✎</b>Blog</a></nav></div>
+        </aside>
+
+        <div class="macro-content">
+          <section class="macro-hero" aria-labelledby="macro-title">
+            <div class="macro-hero-copy">
+              <p class="eyebrow">FREE DAILY NUTRITION TOOL</p>
+              <h1 id="macro-title"><em>Macro Calculator</em></h1>
+              <p class="macro-lede">A simple daily plan for protein, carbs and fat — with familiar foods to help you put it into practice.</p>
+            </div>
+            <form id="macro-form" class="macro-form" novalidate>
+              <div class="input-group country-field">
+                <span class="input-label">Country</span>
+                <div class="country-picker" id="country-picker">
+                  <button id="country-trigger" class="country-trigger" type="button" aria-expanded="false" aria-haspopup="listbox" aria-controls="country-options">
+                    <img id="country-flag" alt="" width="24" height="18" />
+                    <span id="country-label">Loading countries…</span><i aria-hidden="true"></i>
+                  </button>
+                  <div id="country-options" class="country-options" role="listbox" aria-label="Country" hidden></div>
+                </div>
+                <small id="country-hint">Food suggestions adapt to your country</small>
+              </div>
+              <div class="input-group gender-field"><span class="input-label">Gender</span><div class="gender-switch"><button type="button" class="selected" data-gender="male" aria-pressed="true">Male</button><button type="button" data-gender="female" aria-pressed="false">Female</button></div></div>
+              <label class="input-group">Weight <span class="input-suffix"><input id="weight" name="weight" type="number" min="1" max="499" value="70" inputmode="decimal" required /><b>kg</b></span><small>1–499 kg</small></label>
+              <label class="input-group activity-field">Training per week <select id="trainingLevel" name="trainingLevel"><option value="1">0–1 hours</option><option value="2">2–3 hours</option><option value="3" selected>4–5 hours</option><option value="4">6–7 hours</option><option value="5">8–9 hours or more</option></select></label>
+              <div class="form-action"><p>Free, no sign-up required.</p><button class="calculate-button" type="submit">Calculate my macros <span>→</span></button></div>
+              <p id="form-error" class="form-error" role="alert" hidden></p>
+            </form>
+          </section>
+
+          <section id="macro-results" class="macro-results" aria-live="polite" hidden>
+            <div class="results-heading"><div><p class="eyebrow">YOUR DAILY TARGETS</p><h2>Eat with a <em>clearer plan.</em></h2></div><p id="result-summary">Personalized for your training level</p></div>
+            <div id="macro-cards" class="macro-cards"></div>
+            <div class="food-heading"><div><p class="eyebrow">LOCAL FOOD IDEAS</p><h2>Turn targets into <em>meals.</em></h2></div><p>Serving ideas are illustrative — adjust portions to suit your day.</p></div>
+            <div id="food-columns" class="food-columns"></div>
+          </section>
+
+          <section class="macro-reading" aria-label="Macro calculator guide"><article>
+            <p class="eyebrow">THE BASICS</p>
+            <h2>Why Count Macros Instead of Calories?</h2>
+            <p>Calories tell you how much to eat. Macros tell you what to eat. A macro calculator breaks your daily intake into protein, carbs and fat — so you know your body is getting the right fuel, not just the right number. Whether your goal is weight loss, muscle gain, or maintenance, tracking macros gives you an actionable plan.</p>
+            <h2>How This Calculator Works</h2>
+            <ol><li>Enter your gender, weight and weekly training level — it takes under 30 seconds.</li><li>We use your training level with your body weight to return daily protein, carbs and fat ranges.</li><li>See practical food suggestions — rice, noodles, chicken, eggs and nuts — to make every macro target easier to use.</li></ol>
+            <h2>More Than Just Numbers</h2>
+            <p>Most macro calculators stop at grams. Ours adds practical food suggestions such as rice, noodles, chicken, eggs and nuts, so your macro ranges can become an everyday meal plan.</p>
+          </article></section>
+
+          <section class="macro-faq" aria-labelledby="macro-faq-title"><p class="eyebrow">FAQ</p><h2 id="macro-faq-title">Questions, answered.</h2>
+            <details><summary>How much protein do I need per day?</summary><p>Most adults need 1.6 to 2.2 grams of protein per kilogram of body weight, depending on your activity level and goal. Our calculator uses your body weight and goal to give you a personalized number.</p></details>
+            <details><summary>How many carbs should I eat per day?</summary><p>Carb intake depends on your remaining calories after protein and fat are accounted for. For most people, carbs make up 40 to 60 percent of daily calories. Enter your stats above and our calculator does the math for you.</p></details>
+            <details><summary>What is a macro calculator?</summary><p>A macro calculator estimates how many grams of protein, carbohydrates and fat you should eat each day, based on your body stats, activity level and fitness goal. It turns your calorie target into an actionable eating plan.</p></details>
+            <details><summary>Is tracking macros better than counting calories?</summary><p>Counting calories helps you control how much you eat. Tracking macros also controls what you eat. For body composition goals like building muscle or losing fat while keeping muscle, macros give you more precise control.</p></details>
+            <details><summary>Do I need to track macros every day?</summary><p>Not necessarily. Once you use our calculator a few times and learn what a typical day of eating looks like for your goals, you can estimate without tracking every gram. Use it as a starting point and check back when your weight or goals change.</p></details>
+          </section>
+          <footer class="macro-footer">© 2026 BodyForm · Nutritional guidance only — not medical advice.</footer>
+        </div>
+      </div>
+    </main>
+    <script type="module" src="/macro-calculator/macro-calc.js"></script>
+  </body>
+</html>

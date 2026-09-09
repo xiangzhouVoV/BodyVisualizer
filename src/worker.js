@@ -1,4 +1,5 @@
 const BLOG_ORIGIN = "https://body-visualizer-blog.pages.dev";
+const API_ORIGIN = "https://server.body-simulator.com";
 
 export default {
   async fetch(request, env) {
@@ -6,6 +7,11 @@ export default {
 
     if (url.pathname === "/blog") {
       return Response.redirect(new URL("/blog/", url), 308);
+    }
+
+    if (url.pathname.startsWith("/api/")) {
+      const apiUrl = new URL(`${url.pathname}${url.search}`, API_ORIGIN);
+      return fetch(new Request(apiUrl, request));
     }
 
     if (url.pathname.startsWith("/blog/")) {
