@@ -101,7 +101,7 @@ function renderCountries(items) {
       closeCountryOptions();
     });
   });
-  selectCountry(countries.find((country) => country.code === DEFAULT_FOOD_COUNTRY)?.code ?? countries[0]?.code);
+  selectCountry(countries[0]?.code);
 }
 
 async function loadCountries() {
