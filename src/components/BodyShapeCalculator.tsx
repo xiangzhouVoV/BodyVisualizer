@@ -171,6 +171,7 @@ export function BodyShapeCalculator() {
           <nav aria-label="Tools">
             <a href="/"><span aria-hidden="true">◎</span>3D Body Simulator</a>
             <a className="current" href="/body-shape-calculator/"><span aria-hidden="true">◇</span>Body Shape Calculator</a>
+            <a href="/macro-calculator/"><span aria-hidden="true">◒</span>Macro Calculator</a>
           </nav>
           <div className="tool-sidebar-section">
             <span className="tool-sidebar-label">RESOURCES</span>
